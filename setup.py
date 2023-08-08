@@ -1,17 +1,17 @@
 
 '''
-Install the package: pysyncq
+Install the Python Synchronisation Queue - pysyncqpip
 '''
 
-from setuptools import setup
+from setuptools import setup , find_packages
 
-setup(  name = 'mypackage' ,
-     version = '0.1' ,
+setup(  name = 'pysyncq' ,
+     version = '0.0.0' ,
  description = 'Python based time/data synchronisation queue' ,
          url = '#' ,
       author = 'Jackson Smith' ,
 author_email = 'jackson.smith@esi-frankfurt.de' ,
      license = 'GPL' ,
-   packages = [ 'pysyncq' ] ,
+   packages = find_packages( ) ,
    zip_safe = False )
 
