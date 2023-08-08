@@ -40,6 +40,10 @@ class  PySyncQ :
         self.create = create
         self.size = size
         
+        # Sender string and self-filtering bool are uninitialised
+        self.sender   = None
+        self.filtself = None
+        
         # Prepare screening sets for message sender and message type
         self.scrnsend = set( )
         self.scrntype = set( )
@@ -56,10 +60,12 @@ class  PySyncQ :
         
         # Make a memoryview that sees only the queue header. Each indexed unit
         # is of the queue's counter type e.g. unsigned long long integer.
-        self.h = self.shm.buf[ : hdr.sizeqh ].cast( hdr.fmtcnt )
+        self.h = self.shm.buf[ : hdr.sizequeuehead ].cast( hdr.fmtqueuehead )
         
         # Another memoryview sees only the queue body, where the messages go.
-        self.b = self.shm.buf[ hdr.sizeqh : ]
+        # Since we will have no idea how long each message will be, we need the
+        # index granularity to be at the level of each byte.
+        self.b = self.shm.buf[ hdr.sizequeuehead : ]
 
 
     def  __str__ ( self ) :
@@ -71,6 +77,8 @@ class  PySyncQ :
         
 
     #-- Principal API methods --#
+    
+    # Creation / Deletion #
     
     def  open ( self , sender = str( mp.current_process( ).pid ) ,
                        filtself = True ) :
@@ -107,7 +115,7 @@ class  PySyncQ :
             self.h[ hdr.iproc ] -= 1
             noproc = self.h[ hdr.iproc ] == 0
         
-        # Take care to release memoryviews
+        # Take care to release memoryviews, or else .close raises an exception.
         self.h.release( )
         self.b.release( )
         
@@ -116,5 +124,36 @@ class  PySyncQ :
         
         # Unlink if this is the last close
         if  noproc : self.shm.unlink( )
+
+
+    # Message handling #
+    
+    def  append ( self , type = None , msg = '' , block = False ) :
+    
+        '''
+        append ( self , type = None , msg = '' , block = False ) adds a new
+        message to the head of the queue. The message header stores the sender
+        name and type string.The msg forms the main body of the message. A
+        successful write to the queue returns False. But if there is no room in
+        the queue for the message then True is returned, unless block is True.
+        Then append will wait until there is enough room for the message, and
+        False is returned.
+        '''
+        
+        pass
+        
+        
+    def  pop ( self , block = False ) :
+    
+        '''
+        Reads the next next unread message from the queue and returns the tuple
+        ( sender , type , msg ) ... see append. If the sender or type string is
+        found in the scrnsend or scrntype sets, respectively, then the message
+        is skipped, and pop looks for the next unread message in the queue. If
+        there are no unread messages then None is returned, unless block is
+        True. Then pop will wait until there is a new message to read.
+        '''
+        
+        pass
 
 
