@@ -167,8 +167,8 @@ class  PySyncQ :
         with  self.cond :
         
             # The queue is too full
-            if  not ( free  or  block  and  
-                                self.cond.wait_for( free , timer ) ) :
+            if  not ( free( )  or  block  and  
+                                   self.cond.wait_for( free , timer ) ) :
             
                 raise  MemoryError( f'{ n } byte message > '
                                     f'{ self.h[ hdr.ifree ] } free bytes.' )
@@ -192,19 +192,22 @@ class  PySyncQ :
             
             # Byte strings
             for  b  in  ( self.sender , btype , bmsg ) :
-            
+                
                 # Bytes remaining prior to the end of the queue body
                 r = len( self.b ) - i
-            
+                
                 # The string will fit in a contiguous block
-                if  r >= len( b )
+                if  r >= len( b ) :
                 
                     # Slice assign the entire byte string
                     self.b[ i : i + len( b ) ] = b
-                
+                    
+                    # Advance write position to next free byte
+                    i += len( b )
+                    
                 # The queue is a circular buffer. Bisect the string between the
                 # end of the queue body and the start.
-                else
+                else :
                     
                     # Slice assign what we can to the end of the queue body
                     self.b[ i : ] = b[ : r ]
@@ -213,26 +216,35 @@ class  PySyncQ :
                     r = len( b ) - r
                     
                     # Cycle to the start of the queue body and write remainder
-                    self.b[ : r ] = b[ r : ]
-                
+                    self.b[ : r ] = b[ -r : ]
+                    
+                    # Write position at next free byte
+                    i = r
+            
             # Decrement length of message from queue's free space counter
             self.h[ hdr.ifree ] -= n
             
             # Find next byte past new message, the new tail position.
-            self.h[ hdr.itail ] += n
-            self.h[ hdr.itail ] %= len( self.b )
+            self.h[ hdr.itail ] = i
             
             # Message counters require contiguous bytes. But the new tail
             # position is too close to the end of the queue body for that. We
             # must position the tail at the start of the queue body and discard
             # the bytes at the end.
-            if  ( r := len( self.b ) - self.h[ hdr.itail ] )  <  hdr.sizemsghead
+            if  ( r := len( self.b ) - self.h[ hdr.itail ] ) < hdr.sizemsghead :
                 self.h[ hdr.itail ]  = 0
                 self.h[ hdr.ifree ] -= r
             
             # Wake up any process that is waiting on the state of the queue
             self.cond.notify_all( )
         
+        # Dropped out of with statement - queue lock has been released. But the
+        # message counter memoryview remains. It refers to the shared memory,
+        # which cannot close properly until this memoryview has been released.
+        # We do it explicitly, in case the object is not destroyed through
+        # garbage collection before the .close method is invoked.
+        hmsg.release( )
+         
         
     def  pop ( self , block = False ) :
     

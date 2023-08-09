@@ -6,7 +6,7 @@ Collects important constants together into a common namespace.
 #--- IMPORT BLOCK ---#
 
 import  resource
-from ctypes import c_ulong , c_ulonglong , sizeof
+from ctypes import c_uint , c_ulonglong , sizeof
 
 
 #--- GLOBALS ---#
@@ -20,11 +20,11 @@ defsize = resource.getpagesize( )
 fmtqueuehead = 'Q'
 
 # Format string of message-header counter. Unsigned long.
-fmtmsghead = 'L'
+fmtmsghead = 'I'
 
 # Number of bytes in one Unsigned long long. And one Unsigned long.
 nbytequeuehead = sizeof( c_ulonglong )
-nbytemsghead   = sizeof( c_ulong     )
+nbytemsghead   = sizeof( c_uint      )
 
 # Number of counters in queue header [ processes , free bytes , head , tail ]
 lenqueuehead = 4
