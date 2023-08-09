@@ -29,9 +29,13 @@ nbytemsghead   = sizeof( c_ulong     )
 # Number of counters in queue header [ processes , free bytes , head , tail ]
 lenqueuehead = 4
 
-# And number of counters in message header, each giving length in bytes of 
-# [ sender string , type string , message body ]
-lenmsghead = 3
+# And number of counters in message header, all in bytes except reads
+# [ reads , sender string , type string , message body ]
+lenmsghead = 4
+
+# Size of queue and message headers, in bytes
+sizequeuehead = lenqueuehead * nbytequeuehead
+sizemsghead   =   lenmsghead * nbytemsghead
 
 # Ordinal index of each queue header counter with symbolic name
 iproc = 0
@@ -39,8 +43,10 @@ ifree = 1
 ihead = 2
 itail = 3
 
-# Size of queue and message headers, in bytes
-sizequeuehead = lenqueuehead * nbytequeuehead
-sizemsghead   =   lenmsghead * nbytemsghead
+# Ordinal index of each message header counter with symbolic name
+iread = 0
+isend = 1
+itype = 2
+ibody = 3 
 
 

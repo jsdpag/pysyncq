@@ -40,9 +40,9 @@ class  PySyncQ :
         self.create = create
         self.size = size
         
-        # Sender string and self-filtering bool are uninitialised
-        self.sender   = None
-        self.filtself = None
+        # Sender string and is uninitialised. But instance queue position isn't.
+        self.sender = None
+        self.i      = 0
         
         # Prepare screening sets for message sender and message type
         self.scrnsend = set( )
@@ -55,7 +55,8 @@ class  PySyncQ :
         # Create the shared memory
         self.shm = sm.SharedMemory( name , create , size )
         
-        # Guarantee that it is initialised to zeros
+        # Guarantee that it is initialised to zeros. Has effect of setting queue
+        # header process count and head and tail positions to zero, as well.
         self.shm.buf[:] = bytes( size )
         
         # Make a memoryview that sees only the queue header. Each indexed unit
@@ -66,7 +67,10 @@ class  PySyncQ :
         # Since we will have no idea how long each message will be, we need the
         # index granularity to be at the level of each byte.
         self.b = self.shm.buf[ hdr.sizequeuehead : ]
-
+        
+        # Set number of free bytes in the queue main body.
+        self.h[ hdr.ifree ] = len( self.b )
+        
 
     def  __str__ ( self ) :
         
@@ -93,9 +97,6 @@ class  PySyncQ :
         # Store sender string as bytes that can go directly into shared memory
         self.sender = sender.encode( )
         
-        # And remember if messages from the current process should be filtered
-        self.filtself = filtself
-        
         # If true then add local sender name to message filter list
         if  filtself : self.scrnsend.add( sender )
         
@@ -112,7 +113,7 @@ class  PySyncQ :
         # Get queue lock and decrement the process counter in the queue header.
         # But remember the counter value for after the shared memory is closed. 
         with  self.cond :
-            self.h[ hdr.iproc ] -= 1
+            if self.h[ hdr.iproc ] : self.h[ hdr.iproc ] -= 1
             noproc = self.h[ hdr.iproc ] == 0
         
         # Take care to release memoryviews, or else .close raises an exception.
@@ -128,19 +129,109 @@ class  PySyncQ :
 
     # Message handling #
     
-    def  append ( self , type = None , msg = '' , block = False ) :
+    def  append ( self , msgtype = '' , msg = '' , block = False ,
+                         timer = 0.5 ) :
     
         '''
-        append ( self , type = None , msg = '' , block = False ) adds a new
-        message to the head of the queue. The message header stores the sender
-        name and type string.The msg forms the main body of the message. A
-        successful write to the queue returns False. But if there is no room in
-        the queue for the message then True is returned, unless block is True.
-        Then append will wait until there is enough room for the message, and
-        False is returned.
+        append ( self , msgtype = '' , msg = '' , block = False , timer = 0.5 )
+        
+        Adds a new message to the tail of the queue. The message header stores
+        the sender name and message type string.The msg forms the main body of
+        the message.
+        
+        If the queue lacks sufficient free space in which to write the message
+        header and body then a MemoryError exception is raised, unless block is
+        True. Then append will wait until there is enough room in the queue.
+        
+        append will wait indefinitely for free space if timer is None. But timer
+        can be a float that specifies the number of seconds to wait for. If the
+        timer expires before the message is appended to the queue then the
+        MemoryError exception is raise.
         '''
         
-        pass
+        # Internally, messages have the format
+        # [ message counters , message sender , message type , message body ]
+        
+        # Cast type and message strings to bytes
+        btype = msgtype.encode( )
+        bmsg  =     msg.encode( )
+        
+        # Total number of bytes required by the message, including counters
+        n = hdr.sizemsghead + len( self.sender ) + len( btype ) + len( bmsg )
+        
+        # Build a predicate function that returns True when there is enough
+        # space in the queue for the message.
+        free = lambda : self.h[ hdr.ifree ] >= n
+        
+        # Get queue lock, the remainder of append runs with possession of lock
+        with  self.cond :
+        
+            # The queue is too full
+            if  not ( free  or  block  and  
+                                self.cond.wait_for( free , timer ) ) :
+            
+                raise  MemoryError( f'{ n } byte message > '
+                                    f'{ self.h[ hdr.ifree ] } free bytes.' )
+                
+            # If we got here then there is enough free space in the queue. Get
+            # position of queue's tail, which is where the message write starts.
+            i = self.h[ hdr.itail ]
+            
+            # Create a memoryview for the message header counters
+            hmsg = self.b[ i : i + hdr.sizemsghead ].cast( hdr.fmtmsghead )
+            
+            # Load message counters. Number of reads from message must equal the
+            # number of registered processes, one read per process.
+            hmsg[ hdr.iread ] = self.h[ hdr.iproc ]
+            hmsg[ hdr.isend ] = len( self.sender )
+            hmsg[ hdr.itype ] = len( btype )
+            hmsg[ hdr.ibody ] = len( bmsg )
+            
+            # Advance the byte index past the message counters
+            i += hdr.sizemsghead
+            
+            # Byte strings
+            for  b  in  ( self.sender , btype , bmsg ) :
+            
+                # Bytes remaining prior to the end of the queue body
+                r = len( self.b ) - i
+            
+                # The string will fit in a contiguous block
+                if  r >= len( b )
+                
+                    # Slice assign the entire byte string
+                    self.b[ i : i + len( b ) ] = b
+                
+                # The queue is a circular buffer. Bisect the string between the
+                # end of the queue body and the start.
+                else
+                    
+                    # Slice assign what we can to the end of the queue body
+                    self.b[ i : ] = b[ : r ]
+                    
+                    # Number of bytes from string that are still unwritten
+                    r = len( b ) - r
+                    
+                    # Cycle to the start of the queue body and write remainder
+                    self.b[ : r ] = b[ r : ]
+                
+            # Decrement length of message from queue's free space counter
+            self.h[ hdr.ifree ] -= n
+            
+            # Find next byte past new message, the new tail position.
+            self.h[ hdr.itail ] += n
+            self.h[ hdr.itail ] %= len( self.b )
+            
+            # Message counters require contiguous bytes. But the new tail
+            # position is too close to the end of the queue body for that. We
+            # must position the tail at the start of the queue body and discard
+            # the bytes at the end.
+            if  ( r := len( self.b ) - self.h[ hdr.itail ] )  <  hdr.sizemsghead
+                self.h[ hdr.itail ]  = 0
+                self.h[ hdr.ifree ] -= r
+            
+            # Wake up any process that is waiting on the state of the queue
+            self.cond.notify_all( )
         
         
     def  pop ( self , block = False ) :
