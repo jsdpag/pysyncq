@@ -78,7 +78,62 @@ class  PySyncQ :
     
     
     #-- Single underscore methods for internal class use --#
+    
+    def  _next ( self ) :
+    
+        '''
+        _next looks for the next message in the queue relative to current read
+        position of this instance in attribute .i. If there is a message to read
+        then a memoryview of the message counters is returned, along with the
+        location of the first byte past the counters in a tuple with the format
+        ( memoryview , byte-location ); the instance read position is put to the
+        first byte past the end of the message body. However, if there is no
+        message to read then False is returned. 
+        '''
         
+        # Flag lowered if a message is available
+        msgflg = True
+        
+        # Get the queue's lock
+        with  self.cond :
+        
+            # The queue is empty, there is no message
+            if  self.h[ hdr.ifree ] == len( self.b ) : return False
+            
+            # Keep looking so long as the read position hasn't reached the tail
+            while  self.i != self.h[ hdr.itail ] :
+            
+                # Read position is too close to the end of the queue body for
+                # a full set of message counters.
+                if  len( self.b ) - self.i < hdr.nbytemsghead :
+
+                    # The next message will be at the start of the queue body.
+                    self.i = 0
+                
+                # We have a contiguous set of message counters. Raise flag and
+                # break the infinite loop.
+                else :
+                
+                    msgflg = False
+                    break
+                    
+        # There is no message available
+        if  msgflg : return False
+        
+        # Cast memoryview of message's counters
+        hmsg = \
+            self.b[ self.i : self.i + hdr.nbytemsghead ].cast( hdr.fmtmsghead )
+        
+        # Locate the first byte past the message counters
+        b = ( self.i + hdr.nbytemsghead  )  %  len( self.b )
+        
+        # Set read position to first byte past the end of message body
+        self.i = ( b + hmsg[ hdr.isend ] + hmsg[ hdr.itype ] + 
+                       hmsg[ hdr.ibody ] )  %  len( self.b )
+        
+        # Return message details
+        return  ( hmsg , b )
+    
 
     #-- Principal API methods --#
     
@@ -88,7 +143,7 @@ class  PySyncQ :
                        filtself = True ) :
     
         '''
-        .open( sender = pid , filtself = True ) registers the current process
+        open( sender = pid , filtself = True ) registers the current process
         with the queue. sender is a string naming the process in each message
         that it sends. By default, this is the current process ID i.e. pid.
         Messages filtself 
@@ -100,8 +155,12 @@ class  PySyncQ :
         # If true then add local sender name to message filter list
         if  filtself : self.scrnsend.add( sender )
         
-        # Get queue lock and increment the process counter in the queue header
-        with  self.cond : self.h[ hdr.iproc ] += 1
+        # Get queue lock. Increment the process counter in the queue header. And
+        # set this instance's read or queue position to the tail; read only the
+        # messages that come after this instance/process has registered.
+        with  self.cond :
+            self.h[ hdr.iproc ] += 1
+            self.i = self.h[ hdr.itail ]
         
     
     def  close ( self ) :
@@ -115,6 +174,7 @@ class  PySyncQ :
         with  self.cond :
             if self.h[ hdr.iproc ] : self.h[ hdr.iproc ] -= 1
             noproc = self.h[ hdr.iproc ] == 0
+            # Decrement read counter on any unread messages
         
         # Take care to release memoryviews, or else .close raises an exception.
         self.h.release( )
@@ -257,6 +317,10 @@ class  PySyncQ :
         True. Then pop will wait until there is a new message to read.
         '''
         
+        # Locate next message - with lock
+        # Copy message sender, type, and body if not filtered
+        # Decrement read counter - with lock
+        # Loop back if filtered else return read
         pass
 
 
