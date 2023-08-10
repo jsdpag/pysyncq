@@ -26,8 +26,13 @@ fmtmsghead = 'I'
 nbytequeuehead = sizeof( c_ulonglong )
 nbytemsghead   = sizeof( c_uint      )
 
-# Number of counters in queue header [ processes , free bytes , head , tail ]
-lenqueuehead = 4
+# Max value of each counter type
+maxqueuehead = 2 ** ( nbytequeuehead * 8 ) - 1
+maxmsghead   = 2 ** ( nbytemsghead   * 8 ) - 1
+
+# Number of counters in queue header:
+#   [ processes , free bytes , head , tail , serial number ]
+lenqueuehead = 5
 
 # And number of counters in message header, all in bytes except reads
 # [ reads , sender string , type string , message body ]
@@ -42,6 +47,7 @@ iproc = 0
 ifree = 1
 ihead = 2
 itail = 3
+islno = 4
 
 # Ordinal index of each message header counter with symbolic name
 iread = 0
