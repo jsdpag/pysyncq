@@ -84,55 +84,63 @@ class  PySyncQ :
         '''
         _next looks for the next message in the queue relative to current read
         position of this instance in attribute .i. If there is a message to read
-        then a memoryview of the message counters is returned, along with the
-        location of the first byte past the counters in a tuple with the format
-        ( memoryview , byte-location ); the instance read position is put to the
-        first byte past the end of the message body. However, if there is no
-        message to read then False is returned. 
+        then the function will yield a tuple containing a memoryview of the
+        message counters and the location of the first byte that is past them,
+        with the format ( memoryview , byte-location ). The instance read
+        position is placed to the first byte past the end of the message body.
+        
+        Therefore, the function returns a generator that can be run in a loop.
+        Once there is no longer any message to read then the function terminates
+        and implicitly triggers a StopIteration exception. 
         '''
         
-        # Flag lowered if a message is available
-        msgflg = True
+        # Generator loop
+        while  True :
         
-        # Get the queue's lock
-        with  self.cond :
-        
-            # The queue is empty, there is no message
-            if  self.h[ hdr.ifree ] == len( self.b ) : return False
+            # Flag lowered if a message is available
+            msgflg = True
             
-            # Keep looking so long as the read position hasn't reached the tail
-            while  self.i != self.h[ hdr.itail ] :
+            # Get the queue's lock
+            with  self.cond :
             
-                # Read position is too close to the end of the queue body for
-                # a full set of message counters.
-                if  len( self.b ) - self.i < hdr.nbytemsghead :
+                # The queue is empty, there is no message
+                if  self.h[ hdr.ifree ] == len( self.b ) : return
+                
+                # Keep looking, unless the read position has reached the tail
+                while  self.i != self.h[ hdr.itail ] :
+                
+                    # Read position is too close to the end of the queue body
+                    # for a full set of message counters.
+                    if  len( self.b ) - self.i < hdr.nbytemsghead :
 
-                    # The next message will be at the start of the queue body.
-                    self.i = 0
-                
-                # We have a contiguous set of message counters. Raise flag and
-                # break the infinite loop.
-                else :
-                
-                    msgflg = False
-                    break
+                        # Next message will be at the start of the queue body.
+                        self.i = 0
                     
-        # There is no message available
-        if  msgflg : return False
-        
-        # Cast memoryview of message's counters
-        hmsg = \
-            self.b[ self.i : self.i + hdr.nbytemsghead ].cast( hdr.fmtmsghead )
-        
-        # Locate the first byte past the message counters
-        b = ( self.i + hdr.nbytemsghead  )  %  len( self.b )
-        
-        # Set read position to first byte past the end of message body
-        self.i = ( b + hmsg[ hdr.isend ] + hmsg[ hdr.itype ] + 
-                       hmsg[ hdr.ibody ] )  %  len( self.b )
-        
-        # Return message details
-        return  ( hmsg , b )
+                    # We have a contiguous set of message counters. Raise flag
+                    # and break the read-position loop.
+                    else :
+                    
+                        msgflg = False
+                        break
+            
+            # Lock is now released #
+            
+            # There is no message available
+            if  msgflg : return
+            
+            # Cast memoryview of message's counters
+            hmsg = \
+             self.b[ self.i : self.i + hdr.nbytemsghead ].cast( hdr.fmtmsghead )
+            
+            # Locate the first byte past the message counters
+            b = ( self.i + hdr.nbytemsghead  )  %  len( self.b )
+            
+            # Set read position to first byte past the end of message body
+            self.i = ( b + hmsg[ hdr.isend ] + hmsg[ hdr.itype ] + 
+                           hmsg[ hdr.ibody ] )  %  len( self.b )
+            
+            # Generate message details
+            yield  ( hmsg , b )
     
 
     #-- Principal API methods --#
@@ -169,12 +177,17 @@ class  PySyncQ :
         Closes and unlinks the shared memory.
         '''
         
-        # Get queue lock and decrement the process counter in the queue header.
-        # But remember the counter value for after the shared memory is closed. 
+        # Get queue lock.
         with  self.cond :
+        
+            # Scan through any unread messages and decrement the read counter.
+            for m in self._next( ) : m[ 0 ][ hdr.iread ] -= 1
+            
+            # Decrement the process counter
             if self.h[ hdr.iproc ] : self.h[ hdr.iproc ] -= 1
+            
+            # But remember the counter value, we unlink if all instances closed.
             noproc = self.h[ hdr.iproc ] == 0
-            # Decrement read counter on any unread messages
         
         # Take care to release memoryviews, or else .close raises an exception.
         self.h.release( )
