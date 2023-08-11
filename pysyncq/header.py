@@ -38,9 +38,14 @@ lenqueuehead = 5
 # [ reads , sender string , type string , message body ]
 lenmsghead = 4
 
-# Size of queue and message headers, in bytes
+# Size of queue and message header counters, in bytes
 sizequeuehead = lenqueuehead * nbytequeuehead
 sizemsghead   =   lenmsghead * nbytemsghead
+
+# Max size of shared memory is size of queue header + minimum length message
+# size times max value of the queue header serial number counter. The smallest
+# message has no sender, type, or body string; only message header counters.
+maxshmemory = sizequeuehead + maxqueuehead * sizemsghead
 
 # Ordinal index of each queue header counter with symbolic name
 iproc = 0

@@ -35,7 +35,9 @@ class  PySyncQ :
 
     def  __init__ ( self , name = None , create = True , size = hdr.defsize ) :
     
-        # TO DO - CHECK SIZE - GUARANTEE S.No COUNTER IS ALWAYS LEGAL #
+        # Size must not allow more messages than a queue header counter max val.
+        if  size > hdr.maxshmemory :
+            raise  MemoryError( f'Queue size can\'t exceed { hdr.maxshmemory }')
         
         # Remember initialisation parameters, size is especially important
         self.name = name
@@ -43,8 +45,8 @@ class  PySyncQ :
         self.size = size
         
         # Sender string and is uninitialised. Instance read position is
-        # initialised to first byte of queue body. The serial number of the last
-        # read done by this instance is initialised to zero.
+        # initialised to first byte of queue body. The serial number of the
+        # latest read done by this instance is initialised to zero.
         self.sender = None
         self.i      = 0
         self.slno   = 0
@@ -61,7 +63,8 @@ class  PySyncQ :
         self.shm = sm.SharedMemory( name , create , size )
         
         # Guarantee that it is initialised to zeros. Has effect of setting queue
-        # header process count and head and tail positions to zero, as well.
+        # header process count and head and tail positions to zero, as well as
+        # the message or write serial number.
         self.shm.buf[:] = bytes( size )
         
         # Make a memoryview that sees only the queue header. Each indexed unit
@@ -98,59 +101,65 @@ class  PySyncQ :
         Once there is no longer any message to read then the function terminates
         and implicitly triggers a StopIteration exception. 
         '''
-        print( f'_next( ) has been called afresh.' ) # TESTING #
+        
         # Generator loop
         while  True :
-            print( f'Top of _next generator loop.' ) # TESTING #
+            
             # Flag lowered if a message is available
             msgflg = True
-            print( f'msgflg = {msgflg}' ) # TESTING #
+            
             # Get the queue's lock
             with  self.cond :
-                print( f'Got lock.\nself.h[{hdr.ifree}]={self.h[ hdr.ifree ]}\nlen({self.b})={len( self.b )}' ) # TESTING #
+                
                 # The queue is empty, there is no message
-                if  self.h[ hdr.ifree ] == len( self.b ) : return ; print( f'Queue is empty, quit _next.' ) # TESTING #
-                print( f'Queue contains messages\nself.i = {self.i} != {self.h[ hdr.itail ]} = self.h[{hdr.itail}] is {self.i != self.h[ hdr.itail ]}' ) # TESTING #
+                if  self.h[ hdr.ifree ] == len( self.b ) : return
+                
                 # Keep looking, unless the read position has reached the tail.
                 # Note, the logical or operator short-circuits. The serial
                 # numbers are only checked if the instance read position sits at
                 # the tail.
                 while  ( self.i    != self.h[ hdr.itail ]  or
                          self.slno != self.h[ hdr.islno ] ) :
-                    print( f'' ) # TESTING #
+                    
                     # Read position is too close to the end of the queue body
                     # for a full set of message counters.
-                    if  len( self.b ) - self.i < hdr.nbytemsghead :
-                        print( f'' ) # TESTING #
+                    if  len( self.b ) - self.i < hdr.sizemsghead :
+                        
                         # Next message will be at the start of the queue body.
                         self.i = 0
-                        print( f'' ) # TESTING #
+                        
                     # We have a contiguous set of message counters. Raise flag
                     # and break the read-position loop.
                     else :
-                        print( f'' ) # TESTING #
+                        
                         msgflg = False
                         break
             
             # Lock is now released #
-            print( f'' ) # TESTING #
+            
             # There is no message available
             if  msgflg : return
-            print( f'' ) # TESTING #
+            
+            # Increment instance read serial number, modulo max queue count val.
+            if  self.slno == hdr.maxqueuehead :
+                self.slno  = 0
+            else :
+                self.slno += 1
+            
             # Cast memoryview of message's counters
             hmsg = \
-             self.b[ self.i : self.i + hdr.nbytemsghead ].cast( hdr.fmtmsghead )
-            print( f'' ) # TESTING #
+             self.b[ self.i : self.i + hdr.sizemsghead ].cast( hdr.fmtmsghead )
+            
             # Locate the first byte past the message counters
-            b = ( self.i + hdr.nbytemsghead  )  %  len( self.b )
-            print( f'' ) # TESTING #
+            b = ( self.i + hdr.sizemsghead  )  %  len( self.b )
+            
             # Set read position to first byte past the end of message body
             self.i = ( b + hmsg[ hdr.isend ] + hmsg[ hdr.itype ] + 
                            hmsg[ hdr.ibody ] )  %  len( self.b )
-            print( f'' ) # TESTING #
+            
             # Generate message details
             yield  ( hmsg , b )
-            print( f'' ) # TESTING #
+            
 
     #-- Principal API methods --#
     
@@ -190,7 +199,10 @@ class  PySyncQ :
         with  self.cond :
         
             # Scan through any unread messages and decrement the read counter.
-            for m in self._next( ) : m[ 0 ][ hdr.iread ] -= 1
+            # Be careful to release memoryviews.
+            for m in self._next( ) :
+                m[ 0 ][ hdr.iread ] -= 1
+                m[ 0 ].release( )
             
             # Decrement the process counter
             if self.h[ hdr.iproc ] : self.h[ hdr.iproc ] -= 1
@@ -318,7 +330,10 @@ class  PySyncQ :
                 self.h[ hdr.ifree ] -= r
             
             # Increment the message serial number, modulo max value of counter
-            self.h[ hdr.ifree ] = ( self.h[ hdr.ifree ] + 1 ) % hdr.maxqueuehead
+            if  self.h[ hdr.islno ] == hdr.maxqueuehead :
+                self.h[ hdr.islno ]  = 0
+            else :
+                self.h[ hdr.islno ] += 1
             
             # Wake up any process that is waiting on the state of the queue
             self.cond.notify_all( )
