@@ -6,6 +6,7 @@ Python Synchronisation Queue
 #--- IMPORT BLOCK ---#
 
 # Standard library
+from time import time
 import multiprocessing               as mp
 import multiprocessing.shared_memory as sm
 
@@ -50,10 +51,13 @@ class  PySyncQ :
         self.sender = None
         self.i      = 0
         self.slno   = 0
+        self.popred = None
         
-        # Prepare screening sets for message sender and message type
+        # Prepare screening sets for message sender and message type. Pack them
+        # together in a tuple for repeated iteration in pop
         self.scrnsend = set( )
         self.scrntype = set( )
+########        self.scrns = ( self.scrnsend , self.scrntype )
         
         # Create a new condition variable that will govern all access to the
         # shared memory.
@@ -87,6 +91,24 @@ class  PySyncQ :
     
     #-- Single underscore methods for internal class use --#
     
+    def  _popred ( self ) :
+        
+        '''
+        _popred is a predicate function that returns True when the instance
+        read position does not equal the queue tail position. Or when the read
+        serial number does not equal the write serial number. Either condition
+        signals a message that this instance hasn't read yet.
+        
+        DO NOT USE THIS unless the lock has been acquired, first.
+        '''
+        
+        # Note, the logical or operator short-circuits. The serial
+        # numbers are only checked if the instance read position sits at
+        # the tail.
+        return  ( self.i    != self.h[ hdr.itail ]  or
+                  self.slno != self.h[ hdr.islno ] )
+        
+    
     def  _next ( self ) :
     
         '''
@@ -105,40 +127,12 @@ class  PySyncQ :
         # Generator loop
         while  True :
             
-            # Flag lowered if a message is available
-            msgflg = True
-            
             # Get the queue's lock
             with  self.cond :
                 
-                # The queue is empty, there is no message
-                if  self.h[ hdr.ifree ] == len( self.b ) : return
-                
-                # Keep looking, unless the read position has reached the tail.
-                # Note, the logical or operator short-circuits. The serial
-                # numbers are only checked if the instance read position sits at
-                # the tail.
-                while  ( self.i    != self.h[ hdr.itail ]  or
-                         self.slno != self.h[ hdr.islno ] ) :
-                    
-                    # Read position is too close to the end of the queue body
-                    # for a full set of message counters.
-                    if  len( self.b ) - self.i < hdr.sizemsghead :
-                        
-                        # Next message will be at the start of the queue body.
-                        self.i = 0
-                        
-                    # We have a contiguous set of message counters. Raise flag
-                    # and break the read-position loop.
-                    else :
-                        
-                        msgflg = False
-                        break
-            
-            # Lock is now released #
-            
-            # There is no message available
-            if  msgflg : return
+                # Queue is empty or pop predicate fails. There is no message.
+                if ( self.h[ hdr.ifree ] == len( self.b ) or not self._popred ):
+                    return
             
             # Increment instance read serial number, modulo max queue count val.
             if  self.slno == hdr.maxqueuehead :
@@ -156,6 +150,13 @@ class  PySyncQ :
             # Set read position to first byte past the end of message body
             self.i = ( b + hmsg[ hdr.isend ] + hmsg[ hdr.itype ] + 
                            hmsg[ hdr.ibody ] )  %  len( self.b )
+
+            # If the read position is too close to the end of the queue body for
+            # a complete set of message counters to fit then it must skip those
+            # final bytes and go back to the start of the queue body.
+            if  len( self.b ) - self.i  <  hdr.sizemsghead :
+
+                self.i = 0
             
             # Generate message details
             yield  ( hmsg , b )
@@ -183,10 +184,17 @@ class  PySyncQ :
         
         # Get queue lock. Increment the process counter in the queue header. And
         # set this instance's read or queue position to the tail; read only the
-        # messages that come after this instance/process has registered.
+        # messages that come after this instance/process has registered. The
+        # assignment to attribute i should provoke any necessary copy-on-write.
         with  self.cond :
             self.h[ hdr.iproc ] += 1
             self.i = self.h[ hdr.itail ]
+        
+        # Build the instance predicate function for blocking on the condition
+        # variable in pop( ). It is expected that open( ) is called after
+        # forking to a child process. Therefore, attribute i can now refer to a
+        # variable in the memory of the newly created process.
+        self.popred = lambda : 
         
     
     def  close ( self ) :
@@ -346,21 +354,47 @@ class  PySyncQ :
         hmsg.release( )
          
         
-    def  pop ( self , block = False ) :
+    def  pop ( self , block = False , timer = 0.5 ) :
     
         '''
+        pop ( block = False , timer = 0.5 )
+        
         Reads the next next unread message from the queue and returns the tuple
         ( sender , type , msg ) ... see append. If the sender or type string is
         found in the scrnsend or scrntype sets, respectively, then the message
         is skipped, and pop looks for the next unread message in the queue. If
-        there are no unread messages then None is returned, unless block is
-        True. Then pop will wait until there is a new message to read.
+        there are no unread and unscreened messages then None is returned,
+        unless block is True.
+        
+        Then pop will wait until there is a new message to read. Pop will wait
+        indefinitely if timer is None. Otherwise, timer can be a float that
+        gives the number of seconds that pop will wait for. If the timer expires
+        before an unread message becomes available then None will be returned.
         '''
         
+        # Get time at start of function call. We use this to subtract elapsed
+        # time from repeated waits on the condition variable, if frequent
+        # screened messages are appended to the queue by another instance.
+        tin = time( )
+        
+        # Read loop
+        
+        
+        # Scan queue body for next unread and unscreened message
+        for  m in self._next( ) :
+        
+            # Unpack msg header counters and location of 1st byte to follow them
+            ( h , b ) = m
+            
+            # Prepare to iterate through message header length counters, in
+            # register with the 
+            
+        # The _next iterator expires when there are no new messages to read
+        return  None
+        
         # Locate next message - with lock
-        # Copy message sender, type, and body if not filtered
         # Decrement read counter - with lock
-        # Increment instance read serial number
+        # Copy message sender, type, and body if not filtered
         # Loop back if filtered else return read
         pass
 
