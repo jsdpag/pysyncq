@@ -58,6 +58,23 @@ islno = 4
 iread = 0
 isend = 1
 itype = 2
-ibody = 3 
+ibody = 3
+
+# Pack index for sender and type strings in a tuple for easy zipping
+mcnti = ( isend , itype )
+
+
+#--- EXCEPTIONS ---#
+
+class  ScreenedMessage ( Exception ) :
+
+    '''
+    Used to signal when a message has been read from the queue and then screened
+    from further use because the sender or type reside in the instance's screen
+    sets.
+    '''
+    
+    pass
+
 
 

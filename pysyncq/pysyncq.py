@@ -54,10 +54,10 @@ class  PySyncQ :
         self.popred = None
         
         # Prepare screening sets for message sender and message type. Pack them
-        # together in a tuple for repeated iteration in pop
+        # together in a tuple for easy zipping.
         self.scrnsend = set( )
         self.scrntype = set( )
-########        self.scrns = ( self.scrnsend , self.scrntype )
+        self.scrns = ( self.scrnsend , self.scrntype )
         
         # Create a new condition variable that will govern all access to the
         # shared memory.
@@ -378,24 +378,75 @@ class  PySyncQ :
         tin = time( )
         
         # Read loop
+        while  True :
         
-        
-        # Scan queue body for next unread and unscreened message
-        for  m in self._next( ) :
-        
-            # Unpack msg header counters and location of 1st byte to follow them
-            ( h , b ) = m
+            # Scan queue body for next unread message
+            for  m in self._next( ) :
             
-            # Prepare to iterate through message header length counters, in
-            # register with the 
+                # Unpack msg counters and index of 1st byte to follow them
+                ( h , b ) = m
+                
+                # Accumulate message header byte strings into this list, here
+                bstr = [ ]
+                
+                # At this point we have a message, but it might become screened
+                try :
+                    
+                    # Message header strings, and corresponding screening sets
+                    for  ( i , s )  in  zip( hdr.mcnti , self.scrns ) :
+                    
+                        # Return byte string from shared memory
+                        bstr.append(  self.b[ b : b + h[i] ].tobytes()  )
+                        
+                        # This message has a header string that is screened
+                        if  bstr[ -1 ] in s : raise ScreenedMessage
+                        
+                        # Advance message byte index to next string
+                        b += h[ i ]
+                    
+                    # Sender & type strings pass screening tests. Get msg body.
+                    bstr.append(  self.b[ b : b + h[ hdr.ibody ] ].tobytes()  )
+                    
+                    # A message was found, so skip the loop's else statement
+                    break
+                
+                # We found a message on the queue, but it is screened
+                except  ScreenedMessage : ret = None
+                
+                # A genuine error has occurred, pass it on i.e. re-raise it
+                except  Exception as err :
+                    print( f'Unexpected {err=}, {type(err)=}' )
+                    raise
+                
+                # Message found! Build return tuple containing strings.
+                else : ret = ( b.decode( ) for b in bstr )
+                
+                # Screened or not, we must decrement the read counter and alert
+                # anything else that is blocking on the condition variable
+                finally :
+                    with  self.cond as c :
+                        h[ hdr.iread ] -= 1 ;  c.notify_all( )
             
-        # The _next iterator expires when there are no new messages to read
+            # No message was found by _next iterator, for loop drops here
+            else : ret = None
+                
+        # Un-screened and un-read message was found. Return it in a tuple with
+        # format: message ( sender , type , body ). None evaluates as False.
+        if  ret : return ret
+        
+        # No unscreened message was found, but we may block on new messages
+        if  block :
+        
+            # How much time has passed since the call to pop( )?
+            dt = time( ) - tin
+            
+            # Block on the condition variable
+            with  self.cond as c :
+            
+              # The predicate returns true if there is a message before timeout
+              if  c.wait_for( self._popred , timer - dt ) : continue
+        
+        # We only get here if no message was found and any blocking timed out
         return  None
-        
-        # Locate next message - with lock
-        # Decrement read counter - with lock
-        # Copy message sender, type, and body if not filtered
-        # Loop back if filtered else return read
-        pass
 
 
