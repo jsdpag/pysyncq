@@ -81,7 +81,28 @@ class  PySyncQ :
         
         # Set number of free bytes in the queue main body.
         self.h[ hdr.ifree ] = len( self.b )
+    
+    
+    def  __call__ ( self , *args , **kargs ) :
+    
+        '''
+        Implements PySyncQ instance iterable behaviour. Executes repeat calls to
+        pop() until no messages are available, or the blocking timer expires.
+        Using __call__ enables a simple syntax for controlling the behaviour of
+        pop in this context, because __iter__ does not accept input arguments
+        (beyond self).
+        '''
         
+        # Returns None when there is no message, or the blocking timer expires.
+        while  ( m := self.pop( *args , **kargs ) ) : yield m
+
+
+    def  __iter__ ( self ) :
+    
+        'Returns iterator using default pop() input arguments.'
+    
+        return  self( )
+
 
     def  __str__ ( self ) :
         
