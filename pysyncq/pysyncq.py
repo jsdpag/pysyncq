@@ -287,8 +287,9 @@ class  PySyncQ :
         append ( self , msgtype = '' , msg = '' , block = False , timer = 0.5 )
         
         Adds a new message to the tail of the queue. The message header stores
-        the sender name and message type string.The msg forms the main body of
-        the message.
+        the sender name and msgtype as message type. msg forms the main body of
+        the message. If msgtype or msg are not already str or bytes then they
+        are first cast to str before casting to bytes with the default encoding.
         
         If the queue lacks sufficient free space in which to write the message
         header and body then a MemoryError exception is raised, unless block is
@@ -303,9 +304,16 @@ class  PySyncQ :
         # Internally, messages have the format
         # [ message counters , message sender , message type , message body ]
         
-        # Cast type and message strings to bytes
-        btype = msgtype.encode( )
-        bmsg  =     msg.encode( )
+        def  argbytes ( arg ) :
+            '''
+            Guarantee that input args are converted to byte strings from the arg
+            cast to str.
+            '''
+            return  arg  if  type( arg ) is bytes  else  str( arg ).encode( )
+        
+        # Cast message type and body to bytes
+        btype = argbytes( msgtype )
+        bmsg  = argbytes(     msg )
         
         # Total number of bytes required by the message, including counters
         n = hdr.sizemsghead + len( self.sender ) + len( btype ) + len( bmsg )
@@ -403,10 +411,10 @@ class  PySyncQ :
         hmsg.release( )
          
         
-    def  pop ( self , block = False , timer = 0.5 ) :
+    def  pop ( self , block = False , timer = 0.5 , decode = True ) :
     
         '''
-        pop ( block = False , timer = 0.5 )
+        pop ( block = False , timer = 0.5 , decode = True )
         
         Reads the next next unread message from the queue and returns the tuple
         ( sender , type , msg ) ... see append. If the sender or type string is
@@ -419,6 +427,9 @@ class  PySyncQ :
         indefinitely if timer is None. Otherwise, timer can be a float that
         gives the number of seconds that pop will wait for. If the timer expires
         before an unread message becomes available then None will be returned.
+        
+        By default, messages are decoded from bytes to str with the default
+        encoding. But if decode is False then the raw bytes are returned.
         '''
         
         # Get time at start of function call. We use this to subtract elapsed
@@ -465,7 +476,8 @@ class  PySyncQ :
                 # containing strings. Break for loop to skip its else statement.
                 else :
                     bstr.append(  self._read( b , h[ hdr.ibody ] )[ 0 ]  )
-                    ret = tuple( b.decode( ) for b in bstr )
+                    ret = tuple( b.decode( ) for b in bstr ) if decode else \
+                          tuple( bstr )
                     break
                 
                 # Screened or not, we must decrement the read counter and alert
