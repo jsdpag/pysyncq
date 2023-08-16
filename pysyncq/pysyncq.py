@@ -251,6 +251,9 @@ class  PySyncQ :
         Closes and unlinks the shared memory.
         '''
         
+        # Return immediately if shared memory was already closed
+        if  not self.shm : return
+        
         # Get queue lock.
         with  self.cond :
         
@@ -276,6 +279,9 @@ class  PySyncQ :
         
         # Unlink if this is the last close
         if  noproc : self.shm.unlink( )
+        
+        # Signal that shared memory has been closed by this instance
+        self.shm = None
 
 
     # Message handling #
