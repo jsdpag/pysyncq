@@ -270,7 +270,7 @@ class  PySyncQ :
     def  close ( self ) :
         
         '''
-        Closes and unlinks the shared memory.
+        Closes the shared memory. And unlinks if this is the last closure.
         '''
         
         # Return immediately if shared memory was already closed
