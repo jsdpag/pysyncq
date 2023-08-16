@@ -85,7 +85,8 @@ class  PySyncQ :
 
     def  __str__ ( self ) :
         
-        return f'PySyncQ(name={self.name},size={self.size})'
+        return ( f'PySyncQ(name={self.name},size={self.size},'
+                 f'sender={self.sender.decode()},pos={self.i},sn={self.slno})' )
     
     
     #-- Single underscore methods for internal class use --#
