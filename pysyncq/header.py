@@ -63,6 +63,9 @@ ibody = 3
 # Pack index for sender and type strings in a tuple for easy zipping
 mcnti = ( isend , itype )
 
+# Create a message header counter slice that returns byte counts, but not reads
+mbcnt = slice( isend , ibody + 1 )
+
 
 #--- EXCEPTIONS ---#
 

@@ -51,7 +51,6 @@ class  PySyncQ :
         self.sender = None
         self.i      = 0
         self.slno   = 0
-        self.popred = None
         
         # Prepare screening sets for message sender and message type. Pack them
         # together in a tuple for easy zipping.
@@ -131,7 +130,7 @@ class  PySyncQ :
             with  self.cond :
                 
                 # Queue is empty or pop predicate fails. There is no message.
-                if ( self.h[ hdr.ifree ] == len( self.b ) or not self._popred ):
+                if self.h[ hdr.ifree ] == len( self.b ) or not self._popred( ) :
                     return
             
             # Increment instance read serial number, modulo max queue count val.
@@ -148,8 +147,7 @@ class  PySyncQ :
             b = ( self.i + hdr.sizemsghead  )  %  len( self.b )
             
             # Set read position to first byte past the end of message body
-            self.i = ( b + hmsg[ hdr.isend ] + hmsg[ hdr.itype ] + 
-                           hmsg[ hdr.ibody ] )  %  len( self.b )
+            self.i = ( b + sum( hmsg[hdr.mbcnt] ) )  %  len( self.b )
 
             # If the read position is too close to the end of the queue body for
             # a complete set of message counters to fit then it must skip those
@@ -161,6 +159,62 @@ class  PySyncQ :
             # Generate message details
             yield  ( hmsg , b )
             
+
+    def  _read ( self , b , db ) :
+        
+        '''
+        Read db bytes from queue body, starting at byte b. If b is less than db
+        bytes from the end of the queue then the read wraps around to the start
+        of the queue body and returns a concatenated result.
+        
+        Returns tuple ( bstr , b ). bstr is the byte string that is read from
+        the queue body. b is the first byte past the end of the read, modulo
+        queue body size.
+        '''
+        
+        # Number of bytes readable before the end of the queue body
+        n = min( db , len( self.b ) - b )
+        
+        # Read out bytes
+        bstr = self.b[ b : b + n ].tobytes( )
+        
+        # Read must wrap around to start of queue body
+        if  n < db : bstr += self.b[ : db - n ].tobytes( )
+        
+        # Advance b past the read
+        b = ( b + db )  %  len( self.b )
+        
+        # Return the byte string
+        return  bstr , b
+
+
+    def  _free ( self , h ) :
+        
+        '''
+        Free queue memory that stores message with header counter memoryview h.
+        It is assumed that this message is at the queue head and that its read
+        count is depleted.
+        
+        DO NOT USE THIS unless the lock has been acquired, first.
+        '''
+        
+        # Bytes in message, including counters and all byte strings
+        n = hdr.sizemsghead  +  sum( h[ hdr.mbcnt ] )
+        
+        # Advance head of queue, modulo size of queue body
+        self.h[ hdr.ihead ] = ( self.h[ hdr.ihead ] + n )  %  len( self.b )
+        
+        # Free up those bytes
+        self.h[ hdr.ifree ] += n
+        
+        # Head is now too close to end of queue body for a full set of message
+        # counters. Wrap around back to the start of queue body and free the
+        # skipped bytes.
+        if  ( n := len( self.b ) - self.h[ hdr.ihead ] )  <  hdr.sizemsghead :
+            
+            self.h[ hdr.ihead ]  = 0
+            self.h[ hdr.ifree ] += n
+
 
     #-- Principal API methods --#
     
@@ -180,7 +234,7 @@ class  PySyncQ :
         self.sender = sender.encode( )
         
         # If true then add local sender name to message filter list
-        if  filtself : self.scrnsend.add( sender )
+        if  filtself : self.scrnsend.add( self.sender )
         
         # Get queue lock. Increment the process counter in the queue header. And
         # set this instance's read or queue position to the tail; read only the
@@ -189,12 +243,6 @@ class  PySyncQ :
         with  self.cond :
             self.h[ hdr.iproc ] += 1
             self.i = self.h[ hdr.itail ]
-        
-        # Build the instance predicate function for blocking on the condition
-        # variable in pop( ). It is expected that open( ) is called after
-        # forking to a child process. Therefore, attribute i can now refer to a
-        # variable in the memory of the newly created process.
-        self.popred = lambda : 
         
     
     def  close ( self ) :
@@ -209,6 +257,7 @@ class  PySyncQ :
             # Scan through any unread messages and decrement the read counter.
             # Be careful to release memoryviews.
             for m in self._next( ) :
+                
                 m[ 0 ][ hdr.iread ] -= 1
                 m[ 0 ].release( )
             
@@ -375,14 +424,14 @@ class  PySyncQ :
         # Get time at start of function call. We use this to subtract elapsed
         # time from repeated waits on the condition variable, if frequent
         # screened messages are appended to the queue by another instance.
-        tin = time( )
+        if  timer : tin = time( )
         
         # Read loop
         while  True :
         
             # Scan queue body for next unread message
             for  m in self._next( ) :
-            
+                
                 # Unpack msg counters and index of 1st byte to follow them
                 ( h , b ) = m
                 
@@ -394,59 +443,66 @@ class  PySyncQ :
                     
                     # Message header strings, and corresponding screening sets
                     for  ( i , s )  in  zip( hdr.mcnti , self.scrns ) :
-                    
-                        # Return byte string from shared memory
-                        bstr.append(  self.b[ b : b + h[i] ].tobytes()  )
+                        
+                        # Read byte string from shared memory
+                        read , b = self._read( b , h[ i ] )
                         
                         # This message has a header string that is screened
-                        if  bstr[ -1 ] in s : raise ScreenedMessage
+                        if  read in s : raise hdr.ScreenedMessage
                         
-                        # Advance message byte index to next string
-                        b += h[ i ]
+                        # Append newly read byte string to list
+                        bstr.append( read )
                     
-                    # Sender & type strings pass screening tests. Get msg body.
-                    bstr.append(  self.b[ b : b + h[ hdr.ibody ] ].tobytes()  )
-                    
-                    # A message was found, so skip the loop's else statement
-                    break
-                
                 # We found a message on the queue, but it is screened
-                except  ScreenedMessage : ret = None
+                except  hdr.ScreenedMessage : ret = None
                 
                 # A genuine error has occurred, pass it on i.e. re-raise it
                 except  Exception as err :
                     print( f'Unexpected {err=}, {type(err)=}' )
                     raise
                 
-                # Message found! Build return tuple containing strings.
-                else : ret = ( b.decode( ) for b in bstr )
+                # Message found! Read message body. Build return tuple 
+                # containing strings. Break for loop to skip its else statement.
+                else :
+                    bstr.append(  self._read( b , h[ hdr.ibody ] )[ 0 ]  )
+                    ret = tuple( b.decode( ) for b in bstr )
+                    break
                 
                 # Screened or not, we must decrement the read counter and alert
-                # anything else that is blocking on the condition variable
+                # anything else that is blocking on the condition variable, but
+                # only after freeing queue memory if this was the last read.
+                # Guarantee message memoryview is released.
                 finally :
-                    with  self.cond as c :
-                        h[ hdr.iread ] -= 1 ;  c.notify_all( )
+                    with  self.cond :
+                        h[ hdr.iread ] -= 1 ;
+                        if  not h[ hdr.iread ] : self._free( h )
+                        self.cond.notify_all( )
+                    h.release( )
             
             # No message was found by _next iterator, for loop drops here
             else : ret = None
+            
+            # Un-screened and un-read message was found. Return it in a tuple
+            # with format: message ( sender , type , body ). None evaluates as
+            # False.
+            if  ret : return ret
+            
+            # No unscreened message was found, but we may block on new messages
+            if  block :
                 
-        # Un-screened and un-read message was found. Return it in a tuple with
-        # format: message ( sender , type , body ). None evaluates as False.
-        if  ret : return ret
-        
-        # No unscreened message was found, but we may block on new messages
-        if  block :
-        
-            # How much time has passed since the call to pop( )?
-            dt = time( ) - tin
+                # How much time has passed since the call to pop( )?
+                if  timer : dt = timer - ( time( ) - tin )
+                else : dt = None
+                
+                # Block on the condition variable
+                with  self.cond :
+                
+                  # The predicate returns true if there is a message before
+                  # timeout
+                  if  self.cond.wait_for( self._popred , dt ) : continue
             
-            # Block on the condition variable
-            with  self.cond as c :
-            
-              # The predicate returns true if there is a message before timeout
-              if  c.wait_for( self._popred , timer - dt ) : continue
-        
-        # We only get here if no message was found and any blocking timed out
-        return  None
+            # We only get here if no message was found and any blocking timed
+            # out
+            return  None
 
 
