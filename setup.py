@@ -10,7 +10,6 @@ setup(  name = 'pysyncq' ,
  description = 'Python based time/data synchronisation queue' ,
          url = '#' ,
       author = 'Jackson Smith' ,
-author_email = 'jackson.smith@esi-frankfurt.de' ,
      license = 'GPL' ,
    packages = find_packages( ) ,
    zip_safe = False )
