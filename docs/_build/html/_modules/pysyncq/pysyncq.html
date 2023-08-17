@@ -41,7 +41,9 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../intro.html">Get started with pysyncq</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../modules.html">pysyncq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev.html">Developer notes</a></li>
 </ul>
 
         </div>
@@ -125,8 +127,8 @@
         
         <span class="c1"># Prepare screening sets for message sender and message type. Pack them</span>
         <span class="c1"># together in a tuple for easy zipping.</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">scrnsend</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span> <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">scrntype</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scrnsend</span> <span class="o">=</span> <span class="n">hdr</span><span class="o">.</span><span class="n">qset</span><span class="p">(</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scrntype</span> <span class="o">=</span> <span class="n">hdr</span><span class="o">.</span><span class="n">qset</span><span class="p">(</span> <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">scrns</span> <span class="o">=</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">scrnsend</span> <span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">scrntype</span> <span class="p">)</span>
         
         <span class="c1"># Create a new condition variable that will govern all access to the</span>

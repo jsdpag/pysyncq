@@ -54,6 +54,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#module-pysyncq.header">pysyncq.header module</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#pysyncq.header.ScreenedMessage"><code class="docutils literal notranslate"><span class="pre">ScreenedMessage</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#pysyncq.header.qset"><code class="docutils literal notranslate"><span class="pre">qset</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#module-pysyncq.pysyncq">pysyncq.pysyncq module</a><ul>
@@ -126,6 +127,28 @@ from further use because the sender or type reside in the instance’s screen
 sets.</p>
 </dd></dl>
 
+<dl class="py class">
+<dt class="sig sig-object py" id="pysyncq.header.qset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pysyncq.header.</span></span><span class="sig-name descname"><span class="pre">qset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">iterable</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">()</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pysyncq/header.html#qset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pysyncq.header.qset" title="Permalink to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">set</span></code></p>
+<p>sqet( [iterable] )</p>
+<p>A sub-class of set, this differs only in the way that every element is first
+converted to a byte string before being added to the set. The reason being
+that messages are written and read from the PySyncQ shared memory as bytes.
+To screen new messages by sender or message type, then, one only need to
+compare the raw byte string taken from the queue body against the qsets that
+store screened sender and type byte strings.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pysyncq.header.qset.add">
+<span class="sig-name descname"><span class="pre">add</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">element</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pysyncq/header.html#qset.add"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pysyncq.header.qset.add" title="Permalink to this definition"></a></dt>
+<dd><p>Add a new element to the qset. If element is of type bytes then it is
+added directly. A string is first encoded with the default format e.g.
+UTF-8, then added. Any other type of element is first converted to a
+string using str( element ) before encoding.</p>
+</dd></dl>
+
+</dd></dl>
+
 </section>
 <section id="module-pysyncq.pysyncq">
 <span id="pysyncq-pysyncq-module"></span><h2>pysyncq.pysyncq module<a class="headerlink" href="#module-pysyncq.pysyncq" title="Permalink to this heading"></a></h2>
@@ -167,7 +190,7 @@ MemoryError exception is raise.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pysyncq.pysyncq.PySyncQ.open">
-<span class="sig-name descname"><span class="pre">open</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sender</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'58791'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filtself</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pysyncq/pysyncq.html#PySyncQ.open"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pysyncq.pysyncq.PySyncQ.open" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">open</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sender</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'28257'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filtself</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pysyncq/pysyncq.html#PySyncQ.open"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pysyncq.pysyncq.PySyncQ.open" title="Permalink to this definition"></a></dt>
 <dd><p>open( sender = pid , filtself = True ) registers the current process
 with the queue. sender is a string naming the process in each message
 that it sends. By default, this is the current process ID i.e. pid.

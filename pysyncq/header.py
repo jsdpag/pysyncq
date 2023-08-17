@@ -80,4 +80,38 @@ class  ScreenedMessage ( Exception ) :
     pass
 
 
+#--- Supporting classes ---#
+
+class  qset ( set ) :
+
+    '''
+    sqet( [iterable] )
+    
+    A sub-class of set, this differs only in the way that every element is first
+    converted to a byte string before being added to the set. The reason being
+    that messages are written and read from the PySyncQ shared memory as bytes.
+    To screen new messages by sender or message type, then, one only need to
+    compare the raw byte string taken from the queue body against the qsets that
+    store screened sender and type byte strings.
+    '''
+    
+    def  __init__ ( self , iterable = ( ) ) :
+        
+        for i in iterable : self.add( i )
+
+    
+    def  add ( self , elem ) :
+    
+        '''
+        add( element )
+        
+        Add a new element to the qset. If element is of type bytes then it is
+        added directly. A string is first encoded with the default format e.g.
+        UTF-8, then added. Any other type of element is first converted to a
+        string using str( element ) before encoding.
+        '''
+    
+        b = elem if type( elem ) is bytes else str( elem ).encode( )
+        super( ).add( b )
+
 

@@ -41,7 +41,9 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../intro.html">Get started with pysyncq</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../modules.html">pysyncq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../dev.html">Developer notes</a></li>
 </ul>
 
         </div>
@@ -150,6 +152,40 @@
     
     <span class="k">pass</span></div>
 
+
+<span class="c1">#--- Supporting classes ---#</span>
+
+<div class="viewcode-block" id="qset"><a class="viewcode-back" href="../../pysyncq.html#pysyncq.header.qset">[docs]</a><span class="k">class</span>  <span class="nc">qset</span> <span class="p">(</span> <span class="nb">set</span> <span class="p">)</span> <span class="p">:</span>
+
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    sqet( [iterable] )</span>
+<span class="sd">    </span>
+<span class="sd">    A sub-class of set, this differs only in the way that every element is first</span>
+<span class="sd">    converted to a byte string before being added to the set. The reason being</span>
+<span class="sd">    that messages are written and read from the PySyncQ shared memory as bytes.</span>
+<span class="sd">    To screen new messages by sender or message type, then, one only need to</span>
+<span class="sd">    compare the raw byte string taken from the queue body against the qsets that</span>
+<span class="sd">    store screened sender and type byte strings.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    
+    <span class="k">def</span>  <span class="fm">__init__</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="n">iterable</span> <span class="o">=</span> <span class="p">(</span> <span class="p">)</span> <span class="p">)</span> <span class="p">:</span>
+        
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">iterable</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span> <span class="n">i</span> <span class="p">)</span>
+
+    
+<div class="viewcode-block" id="qset.add"><a class="viewcode-back" href="../../pysyncq.html#pysyncq.header.qset.add">[docs]</a>    <span class="k">def</span>  <span class="nf">add</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="n">elem</span> <span class="p">)</span> <span class="p">:</span>
+<span class="w">    </span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        add( element )</span>
+<span class="sd">        </span>
+<span class="sd">        Add a new element to the qset. If element is of type bytes then it is</span>
+<span class="sd">        added directly. A string is first encoded with the default format e.g.</span>
+<span class="sd">        UTF-8, then added. Any other type of element is first converted to a</span>
+<span class="sd">        string using str( element ) before encoding.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+    
+        <span class="n">b</span> <span class="o">=</span> <span class="n">elem</span> <span class="k">if</span> <span class="nb">type</span><span class="p">(</span> <span class="n">elem</span> <span class="p">)</span> <span class="ow">is</span> <span class="nb">bytes</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span> <span class="n">elem</span> <span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span> <span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span> <span class="p">)</span><span class="o">.</span><span class="n">add</span><span class="p">(</span> <span class="n">b</span> <span class="p">)</span></div></div>
 
 
 </pre></div>

@@ -54,8 +54,8 @@ class  PySyncQ :
         
         # Prepare screening sets for message sender and message type. Pack them
         # together in a tuple for easy zipping.
-        self.scrnsend = set( )
-        self.scrntype = set( )
+        self.scrnsend = hdr.qset( )
+        self.scrntype = hdr.qset( )
         self.scrns = ( self.scrnsend , self.scrntype )
         
         # Create a new condition variable that will govern all access to the

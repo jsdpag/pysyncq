@@ -121,9 +121,6 @@ if __name__ == "__main__" :
     # Create a new synchronisation queue with a small buffer of shared memory
     q = pq.PySyncQ( 'pqdemo' , size = 256 )
 
-    # Child process list
-    P = [ ]
-
     # Create one child per processor. NOTE that q is an input argument for the
     # child target function. This shares the same lock amongst the child
     # processes.
