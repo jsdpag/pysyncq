@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pysyncq.tests.demo &mdash; pysyncq 0.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+        <script src="../../../_static/sphinx_highlight.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            pysyncq
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">Get started with pysyncq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">pysyncq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../dev.html">Developer notes</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">pysyncq</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">pysyncq.tests.demo</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for pysyncq.tests.demo</h1><div class="highlight"><pre>
+<span></span>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">A simple demonstration of how pysyncq can be used to coordinate the behaviour of</span>
+<span class="sd">multiple child processes. Program can be run from the command line:</span>
+
+<span class="sd">e.g. $ python demo.py</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+
+<span class="c1">#--- Import block ---#</span>
+
+<span class="c1"># Standard library</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span> <span class="k">as</span> <span class="nn">mp</span>
+<span class="kn">import</span> <span class="nn">time</span> <span class="k">as</span> <span class="nn">t</span>
+<span class="kn">import</span> <span class="nn">random</span> <span class="k">as</span> <span class="nn">rnd</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">pi</span>
+<span class="kn">from</span> <span class="nn">select</span> <span class="kn">import</span> <span class="n">select</span>
+
+<span class="c1"># pysyncq</span>
+<span class="kn">from</span> <span class="nn">pysyncq</span> <span class="kn">import</span> <span class="n">pysyncq</span> <span class="k">as</span> <span class="n">pq</span>
+
+
+<span class="c1">#--- Global variables ---#</span>
+
+<span class="c1"># Sets of grammatical elements</span>
+<span class="n">determiner</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;a&#39;</span> <span class="p">,</span> <span class="s1">&#39;the&#39;</span> <span class="p">,</span> <span class="s1">&#39;your&#39;</span> <span class="p">,</span> <span class="s1">&#39;my&#39;</span> <span class="p">,</span> <span class="s2">&quot;someone&#39;s&quot;</span> <span class="p">,</span> <span class="s2">&quot;no one&#39;s&quot;</span> <span class="p">}</span>
+<span class="n">noun</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;dog&#39;</span> <span class="p">,</span> <span class="s1">&#39;cat&#39;</span> <span class="p">,</span> <span class="s1">&#39;computer&#39;</span> <span class="p">,</span> <span class="s1">&#39;castle&#39;</span> <span class="p">,</span> <span class="s1">&#39;pear&#39;</span> <span class="p">,</span> <span class="s1">&#39;shire&#39;</span> <span class="p">,</span> <span class="s1">&#39;nose&#39;</span> <span class="p">}</span>
+<span class="n">verb</span> <span class="o">=</span> <span class="p">{</span> <span class="s1">&#39;ate&#39;</span> <span class="p">,</span> <span class="s1">&#39;married&#39;</span> <span class="p">,</span> <span class="s1">&#39;fled&#39;</span> <span class="p">,</span> <span class="s1">&#39;hid&#39;</span> <span class="p">,</span> <span class="s1">&#39;shared&#39;</span> <span class="p">,</span> <span class="s1">&#39;worried&#39;</span><span class="p">,</span> <span class="s1">&#39;satisfied&#39;</span><span class="p">}</span>
+
+<span class="c1"># Cast sets as tuples for random selection</span>
+<span class="n">tdet</span>  <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span> <span class="n">determiner</span> <span class="p">)</span>
+<span class="n">tnoun</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span> <span class="n">noun</span> <span class="p">)</span>
+<span class="n">tverb</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span> <span class="n">verb</span> <span class="p">)</span>
+
+
+<span class="c1">#--- Child process function ---#</span>
+
+<div class="viewcode-block" id="cfun"><a class="viewcode-back" href="../../../pysyncq.tests.html#pysyncq.tests.demo.cfun">[docs]</a><span class="k">def</span>  <span class="nf">cfun</span> <span class="p">(</span> <span class="n">q</span> <span class="p">,</span> <span class="n">name</span> <span class="p">)</span> <span class="p">:</span>
+    
+    <span class="c1"># Local copy of the queue must be opened to register the child process. A</span>
+    <span class="c1"># name is provided that will identify who created each message.</span>
+    <span class="n">q</span><span class="o">.</span><span class="n">open</span><span class="p">(</span> <span class="n">name</span> <span class="p">)</span>
+    
+    <span class="c1"># Flush buffers to get immediate output to stdout</span>
+    <span class="nb">print</span><span class="p">(</span> <span class="n">name</span> <span class="p">,</span> <span class="s1">&#39;opened&#39;</span> <span class="p">,</span> <span class="n">q</span> <span class="p">,</span> <span class="n">flush</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">)</span>
+    
+    <span class="c1"># Block indefinitely on a start signal from the parent process</span>
+    <span class="p">(</span> <span class="n">sender</span> <span class="p">,</span> <span class="n">msgtype</span> <span class="p">,</span> <span class="n">msg</span> <span class="p">)</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span> <span class="n">block</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">,</span> <span class="n">timer</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">)</span>
+    
+    <span class="c1"># Check that this was the user&#39;s start signal from the parent process</span>
+    <span class="k">if</span> <span class="p">(</span> <span class="n">sender</span> <span class="p">,</span> <span class="n">msgtype</span> <span class="p">,</span> <span class="n">msg</span> <span class="p">)</span> <span class="o">!=</span> <span class="p">(</span> <span class="s1">&#39;parent&#39;</span> <span class="p">,</span> <span class="s1">&#39;user&#39;</span> <span class="p">,</span> <span class="s1">&#39;start&#39;</span> <span class="p">)</span> <span class="p">:</span>
+    
+        <span class="n">printf</span><span class="p">(</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="si">}</span><span class="s1"> received improper start signal.&#39;</span> <span class="p">,</span> <span class="n">flush</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">)</span>
+        
+    <span class="k">else</span> <span class="p">:</span> <span class="nb">print</span><span class="p">(</span> <span class="n">name</span> <span class="p">,</span> <span class="s1">&#39;received start signal.&#39;</span> <span class="p">)</span>
+    
+    <span class="c1"># Read flag is lowered when stop signal received</span>
+    <span class="n">rdflag</span> <span class="o">=</span> <span class="kc">True</span>
+    
+    <span class="c1"># Read loop</span>
+    <span class="k">while</span>  <span class="n">rdflag</span> <span class="p">:</span>
+    
+        <span class="c1"># Random wait to simulate processing of some sort</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span> <span class="n">rnd</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span> <span class="mf">0.01</span> <span class="p">,</span> <span class="n">pi</span> <span class="p">)</span> <span class="p">)</span>
+        
+        <span class="c1"># Build a sentence</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="p">[</span> <span class="n">rnd</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span> <span class="n">tdet</span> <span class="p">)</span><span class="o">.</span><span class="n">capitalize</span><span class="p">(</span> <span class="p">)</span> <span class="p">,</span> <span class="n">rnd</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span> <span class="n">tnoun</span> <span class="p">)</span> <span class="p">,</span>
+                <span class="n">rnd</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span> <span class="n">tverb</span> <span class="p">)</span> <span class="p">]</span>
+        <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">rnd</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span> <span class="nb">tuple</span><span class="p">(</span> <span class="n">determiner</span> <span class="o">-</span> <span class="p">{</span> <span class="n">msg</span><span class="p">[</span> <span class="mi">0</span> <span class="p">]</span> <span class="p">}</span> <span class="p">)</span> <span class="p">)</span> <span class="p">)</span>
+        <span class="n">msg</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">rnd</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span> <span class="nb">tuple</span><span class="p">(</span>       <span class="n">noun</span> <span class="o">-</span> <span class="p">{</span> <span class="n">msg</span><span class="p">[</span> <span class="mi">1</span> <span class="p">]</span> <span class="p">}</span> <span class="p">)</span> <span class="p">)</span> <span class="p">)</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span> <span class="n">msg</span> <span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;.&#39;</span>
+        
+        <span class="c1"># Add sentence to the tail of the queue. Wait briefly for free space.</span>
+        <span class="c1"># Otherwise, abort the write.</span>
+        <span class="k">try</span> <span class="p">:</span>
+          
+            <span class="c1"># Arg order is message type , message body. Waits 0.5sec by default.</span>
+            <span class="n">q</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="s1">&#39;sentence&#39;</span> <span class="p">,</span> <span class="n">msg</span> <span class="p">,</span> <span class="n">block</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">)</span>
+          
+        <span class="c1"># The queue was full and no messages were removed from the head of the</span>
+        <span class="c1"># queue before the write timer expired.</span>
+        <span class="k">except</span>  <span class="ne">MemoryError</span> <span class="p">:</span>
+            
+            <span class="nb">print</span><span class="p">(</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="si">}</span><span class="s1"> aborts write due to full queue.&#39;</span> <span class="p">,</span> <span class="n">flush</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">)</span>
+        
+    
+        <span class="c1"># Iterator behaviour, a timed wait for incoming messages</span>
+        <span class="k">for</span>  <span class="n">m</span> <span class="ow">in</span> <span class="n">q</span><span class="p">(</span> <span class="n">block</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">,</span> <span class="n">timer</span> <span class="o">=</span> <span class="mf">0.2</span> <span class="p">)</span> <span class="p">:</span>
+            
+            <span class="c1"># Respond to different message types</span>
+            <span class="k">match</span> <span class="n">m</span> <span class="p">:</span>
+            
+                <span class="c1"># Check for stop signal. Lower flag to break read loop.</span>
+                <span class="k">case</span> <span class="p">[</span> <span class="s1">&#39;parent&#39;</span> <span class="p">,</span> <span class="s1">&#39;user&#39;</span> <span class="p">,</span> <span class="s1">&#39;stop&#39;</span> <span class="p">]</span> <span class="p">:</span>
+
+                    <span class="nb">print</span><span class="p">(</span> <span class="n">name</span> <span class="p">,</span> <span class="s1">&#39;received stop signal.&#39;</span> <span class="p">,</span> <span class="n">flush</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">)</span>
+                    <span class="n">rdflag</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="k">break</span>
+                
+                <span class="c1"># Sentence received from another child process</span>
+                <span class="k">case</span><span class="w"> </span><span class="p">[</span> <span class="k">_</span> <span class="p">,</span> <span class="s1">&#39;sentence&#39;</span> <span class="p">,</span> <span class="n">msg</span> <span class="p">]</span> <span class="p">:</span>
+                
+                    <span class="nb">print</span><span class="p">(</span> <span class="n">name</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;read: &quot;</span><span class="si">{</span><span class="w"> </span><span class="n">msg</span><span class="w"> </span><span class="si">}</span><span class="s1">&quot; from&#39;</span><span class="p">,</span> <span class="n">m</span><span class="p">[</span> <span class="mi">0</span> <span class="p">],</span> <span class="n">flush</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">)</span>
+            
+        <span class="c1"># No messages returned before read timer expired.</span>
+        <span class="k">else</span> <span class="p">:</span>
+        
+            <span class="nb">print</span><span class="p">(</span> <span class="n">name</span> <span class="p">,</span> <span class="s1">&#39;read timer expired.&#39;</span> <span class="p">,</span> <span class="n">flush</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">)</span>
+    
+    <span class="c1"># Always close the buffer. Last to close also unlinks shared memory.</span>
+    <span class="c1"># Otherwise, shared memory is not released by the operating system, leaking</span>
+    <span class="c1"># resources.</span>
+    <span class="n">q</span><span class="o">.</span><span class="n">close</span><span class="p">(</span> <span class="p">)</span></div>
+
+
+<span class="c1">#--- MAIN ---#</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span> <span class="p">:</span>
+
+    <span class="c1"># Create a new synchronisation queue with a small buffer of shared memory</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">pq</span><span class="o">.</span><span class="n">PySyncQ</span><span class="p">(</span> <span class="s1">&#39;pqdemo&#39;</span> <span class="p">,</span> <span class="n">size</span> <span class="o">=</span> <span class="mi">256</span> <span class="p">)</span>
+
+    <span class="c1"># Child process list</span>
+    <span class="n">P</span> <span class="o">=</span> <span class="p">[</span> <span class="p">]</span>
+
+    <span class="c1"># Create one child per processor. NOTE that q is an input argument for the</span>
+    <span class="c1"># child target function. This shares the same lock amongst the child</span>
+    <span class="c1"># processes.</span>
+    <span class="n">P</span> <span class="o">=</span> <span class="p">[</span> <span class="n">mp</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span> <span class="n">target</span> <span class="o">=</span> <span class="n">cfun</span> <span class="p">,</span> <span class="n">args</span> <span class="o">=</span> <span class="p">(</span> <span class="n">q</span> <span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;Child-</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">&#39;</span> <span class="p">)</span> <span class="p">)</span>
+          <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span> <span class="n">mp</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">(</span> <span class="p">)</span> <span class="p">)</span> <span class="p">]</span>
+
+    <span class="c1"># User triggers execution of child processes</span>
+    <span class="nb">input</span><span class="p">(</span> <span class="s1">&#39;Hit &lt;ENTER&gt; to run child processes.&#39;</span> <span class="p">)</span>
+
+    <span class="c1"># Start child process execution</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">P</span> <span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">start</span><span class="p">(</span> <span class="p">)</span>
+
+    <span class="c1"># Open local copy of the queue. Sender name is specified as &#39;parent&#39;.</span>
+    <span class="c1"># Default behaviour is to screen one&#39;s own messages, but this can be</span>
+    <span class="c1"># disabled. See the filtself input argument.</span>
+    <span class="n">q</span><span class="o">.</span><span class="n">open</span><span class="p">(</span> <span class="s1">&#39;parent&#39;</span> <span class="p">)</span>
+
+    <span class="c1"># User sends start signal</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span> <span class="mf">0.1</span> <span class="p">)</span>
+    <span class="nb">input</span><span class="p">(</span> <span class="s1">&#39;Hit &lt;ENTER&gt; to send start signal.</span><span class="se">\n</span><span class="s1">&#39;</span>
+           <span class="s1">&#39;Hit &lt;ENTER&gt; again to send stop signal.&#39;</span> <span class="p">)</span>
+
+    <span class="c1"># We append messages to the queue. Sender name is automatically included.</span>
+    <span class="c1"># Here, the message type is &#39;user&#39; and the message body is &#39;start&#39;</span>
+    <span class="n">q</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">msgtype</span> <span class="o">=</span> <span class="s1">&#39;user&#39;</span> <span class="p">,</span> <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;start&#39;</span> <span class="p">)</span>
+
+    <span class="c1"># Read loop</span>
+    <span class="k">while</span>  <span class="kc">True</span> <span class="p">:</span>
+
+        <span class="c1"># Wait for user input, one second at a time</span>
+        <span class="n">r</span> <span class="p">,</span> <span class="n">_</span> <span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span> <span class="p">[</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span> <span class="p">]</span> <span class="p">,</span> <span class="p">[</span> <span class="p">]</span> <span class="p">,</span> <span class="p">[</span> <span class="p">]</span> <span class="p">,</span> <span class="mi">1</span> <span class="p">)</span>
+        
+        <span class="c1"># User hit enter</span>
+        <span class="k">if</span>  <span class="n">r</span> <span class="p">:</span> <span class="k">break</span>
+        
+        <span class="c1"># Clear queue</span>
+        <span class="k">for</span>  <span class="n">m</span> <span class="ow">in</span> <span class="n">q</span> <span class="p">:</span> <span class="k">pass</span>
+
+    <span class="c1"># Stop signal</span>
+    <span class="n">q</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="s1">&#39;user&#39;</span> <span class="p">,</span> <span class="s1">&#39;stop&#39;</span> <span class="p">,</span> <span class="n">block</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">,</span> <span class="n">timer</span> <span class="o">=</span> <span class="mi">30</span> <span class="p">)</span>
+
+    <span class="c1"># Join terminated child processes</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">P</span> <span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">join</span><span class="p">(</span> <span class="p">)</span> <span class="p">;</span> <span class="nb">print</span><span class="p">(</span> <span class="sa">f</span><span class="s1">&#39;Joined pid </span><span class="si">{</span><span class="w"> </span><span class="n">p</span><span class="o">.</span><span class="n">pid</span><span class="w"> </span><span class="si">}</span><span class="s1">.&#39;</span> <span class="p">,</span> <span class="n">flush</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">)</span>
+
+    <span class="c1"># Close synchronisation queue</span>
+    <span class="n">q</span><span class="o">.</span><span class="n">close</span><span class="p">(</span> <span class="p">)</span>
+
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Jackson Smith.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

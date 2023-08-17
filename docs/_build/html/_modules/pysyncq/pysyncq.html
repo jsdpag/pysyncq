@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pysyncq.pysyncq &mdash; pysyncq 0.0.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            pysyncq
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">pysyncq</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">pysyncq</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">pysyncq.pysyncq</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for pysyncq.pysyncq</h1><div class="highlight"><pre>
+<span></span>
+<span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">Python Synchronisation Queue</span>
+<span class="sd">&#39;&#39;&#39;</span>
+
+<span class="c1">#--- IMPORT BLOCK ---#</span>
+
+<span class="c1"># Standard library</span>
+<span class="kn">from</span> <span class="nn">time</span> <span class="kn">import</span> <span class="n">time</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span>               <span class="k">as</span> <span class="nn">mp</span>
+<span class="kn">import</span> <span class="nn">multiprocessing.shared_memory</span> <span class="k">as</span> <span class="nn">sm</span>
+
+<span class="c1"># From pysyncq package</span>
+<span class="kn">from</span> <span class="nn">pysyncq</span> <span class="kn">import</span> <span class="n">header</span> <span class="k">as</span> <span class="n">hdr</span>
+
+
+<span class="c1">#--- PRINCIPAL API ---#</span>
+
+<div class="viewcode-block" id="PySyncQ"><a class="viewcode-back" href="../../pysyncq.html#pysyncq.pysyncq.PySyncQ">[docs]</a><span class="k">class</span>  <span class="nc">PySyncQ</span> <span class="p">:</span>
+
+<span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    class pysyncq.PySyncQ( name = None , create = True , size = &lt;Page Size&gt; )</span>
+
+<span class="sd">    Creates a synchronisation queue. name is a str that names the shared memory</span>
+<span class="sd">    that is the backbone of the queue, and to which all processes will connect.</span>
+<span class="sd">    create is a bool that signals whether to create new shared memory (True) or</span>
+<span class="sd">    to use existing shared memory (False). size is an int of 0 or greater giving</span>
+<span class="sd">    the number of bytes to request for the shared memory.</span>
+<span class="sd">    </span>
+<span class="sd">    Each process that wishes to read/write on the queue must make a separate</span>
+<span class="sd">    call to the .open( ) method, in order to register itself with the queue as</span>
+<span class="sd">    a unique reader/writer.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+
+    <span class="c1">#-- Double underscore methods --#</span>
+
+    <span class="k">def</span>  <span class="fm">__init__</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">,</span> <span class="n">create</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">,</span> <span class="n">size</span> <span class="o">=</span> <span class="n">hdr</span><span class="o">.</span><span class="n">defsize</span> <span class="p">)</span> <span class="p">:</span>
+    
+        <span class="c1"># Size must not allow more messages than a queue header counter max val.</span>
+        <span class="k">if</span>  <span class="n">size</span> <span class="o">&gt;</span> <span class="n">hdr</span><span class="o">.</span><span class="n">maxshmemory</span> <span class="p">:</span>
+            <span class="k">raise</span>  <span class="ne">MemoryError</span><span class="p">(</span> <span class="sa">f</span><span class="s1">&#39;Queue size can</span><span class="se">\&#39;</span><span class="s1">t exceed </span><span class="si">{</span><span class="w"> </span><span class="n">hdr</span><span class="o">.</span><span class="n">maxshmemory</span><span class="w"> </span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        
+        <span class="c1"># Remember initialisation parameters, size is especially important</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">create</span> <span class="o">=</span> <span class="n">create</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">size</span>
+        
+        <span class="c1"># Sender string and is uninitialised. Instance read position is</span>
+        <span class="c1"># initialised to first byte of queue body. The serial number of the</span>
+        <span class="c1"># latest read done by this instance is initialised to zero.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sender</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">i</span>      <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">slno</span>   <span class="o">=</span> <span class="mi">0</span>
+        
+        <span class="c1"># Prepare screening sets for message sender and message type. Pack them</span>
+        <span class="c1"># together in a tuple for easy zipping.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scrnsend</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scrntype</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scrns</span> <span class="o">=</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">scrnsend</span> <span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">scrntype</span> <span class="p">)</span>
+        
+        <span class="c1"># Create a new condition variable that will govern all access to the</span>
+        <span class="c1"># shared memory.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cond</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">Condition</span><span class="p">(</span> <span class="p">)</span>
+        
+        <span class="c1"># Create the shared memory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shm</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">SharedMemory</span><span class="p">(</span> <span class="n">name</span> <span class="p">,</span> <span class="n">create</span> <span class="p">,</span> <span class="n">size</span> <span class="p">)</span>
+        
+        <span class="c1"># Guarantee that it is initialised to zeros. Has effect of setting queue</span>
+        <span class="c1"># header process count and head and tail positions to zero, as well as</span>
+        <span class="c1"># the message or write serial number.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shm</span><span class="o">.</span><span class="n">buf</span><span class="p">[:]</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span> <span class="n">size</span> <span class="p">)</span>
+        
+        <span class="c1"># Make a memoryview that sees only the queue header. Each indexed unit</span>
+        <span class="c1"># is of the queue&#39;s counter type e.g. unsigned long long integer.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shm</span><span class="o">.</span><span class="n">buf</span><span class="p">[</span> <span class="p">:</span> <span class="n">hdr</span><span class="o">.</span><span class="n">sizequeuehead</span> <span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span> <span class="n">hdr</span><span class="o">.</span><span class="n">fmtqueuehead</span> <span class="p">)</span>
+        
+        <span class="c1"># Another memoryview sees only the queue body, where the messages go.</span>
+        <span class="c1"># Since we will have no idea how long each message will be, we need the</span>
+        <span class="c1"># index granularity to be at the level of each byte.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shm</span><span class="o">.</span><span class="n">buf</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">sizequeuehead</span> <span class="p">:</span> <span class="p">]</span>
+        
+        <span class="c1"># Set number of free bytes in the queue main body.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ifree</span> <span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="p">)</span>
+    
+    
+    <span class="k">def</span>  <span class="fm">__call__</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="o">*</span><span class="n">args</span> <span class="p">,</span> <span class="o">**</span><span class="n">kargs</span> <span class="p">)</span> <span class="p">:</span>
+<span class="w">    </span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Implements PySyncQ instance iterable behaviour. Executes repeat calls to</span>
+<span class="sd">        pop() until no messages are available, or the blocking timer expires.</span>
+<span class="sd">        Using __call__ enables a simple syntax for controlling the behaviour of</span>
+<span class="sd">        pop in this context, because __iter__ does not accept input arguments</span>
+<span class="sd">        (beyond self).</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="c1"># Returns None when there is no message, or the blocking timer expires.</span>
+        <span class="k">while</span>  <span class="p">(</span> <span class="n">m</span> <span class="o">:=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span> <span class="o">*</span><span class="n">args</span> <span class="p">,</span> <span class="o">**</span><span class="n">kargs</span> <span class="p">)</span> <span class="p">)</span> <span class="p">:</span> <span class="k">yield</span> <span class="n">m</span>
+
+
+    <span class="k">def</span>  <span class="fm">__iter__</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">)</span> <span class="p">:</span>
+    
+        <span class="s1">&#39;Returns iterator using default pop() input arguments.&#39;</span>
+    
+        <span class="k">return</span>  <span class="bp">self</span><span class="p">(</span> <span class="p">)</span>
+
+
+    <span class="k">def</span>  <span class="fm">__str__</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">)</span> <span class="p">:</span>
+        
+        <span class="k">return</span> <span class="p">(</span> <span class="sa">f</span><span class="s1">&#39;PySyncQ(name=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">,size=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="si">}</span><span class="s1">,&#39;</span>
+                 <span class="sa">f</span><span class="s1">&#39;sender=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sender</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span><span class="si">}</span><span class="s1">,pos=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">i</span><span class="si">}</span><span class="s1">,sn=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">slno</span><span class="si">}</span><span class="s1">)&#39;</span> <span class="p">)</span>
+    
+    
+    <span class="c1">#-- Single underscore methods for internal class use --#</span>
+    
+    <span class="k">def</span>  <span class="nf">_popred</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">)</span> <span class="p">:</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        _popred is a predicate function that returns True when the instance</span>
+<span class="sd">        read position does not equal the queue tail position. Or when the read</span>
+<span class="sd">        serial number does not equal the write serial number. Either condition</span>
+<span class="sd">        signals a message that this instance hasn&#39;t read yet.</span>
+<span class="sd">        </span>
+<span class="sd">        DO NOT USE THIS unless the lock has been acquired, first.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="c1"># Note, the logical or operator short-circuits. The serial</span>
+        <span class="c1"># numbers are only checked if the instance read position sits at</span>
+        <span class="c1"># the tail.</span>
+        <span class="k">return</span>  <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">i</span>    <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">itail</span> <span class="p">]</span>  <span class="ow">or</span>
+                  <span class="bp">self</span><span class="o">.</span><span class="n">slno</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">islno</span> <span class="p">]</span> <span class="p">)</span>
+        
+    
+    <span class="k">def</span>  <span class="nf">_next</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">)</span> <span class="p">:</span>
+<span class="w">    </span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        _next looks for the next message in the queue relative to current read</span>
+<span class="sd">        position of this instance in attribute .i. If there is a message to read</span>
+<span class="sd">        then the function will yield a tuple containing a memoryview of the</span>
+<span class="sd">        message counters and the location of the first byte that is past them,</span>
+<span class="sd">        with the format ( memoryview , byte-location ). The instance read</span>
+<span class="sd">        position is placed to the first byte past the end of the message body.</span>
+<span class="sd">        </span>
+<span class="sd">        Therefore, the function returns a generator that can be run in a loop.</span>
+<span class="sd">        Once there is no longer any message to read then the function terminates</span>
+<span class="sd">        and implicitly triggers a StopIteration exception. </span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="c1"># Generator loop</span>
+        <span class="k">while</span>  <span class="kc">True</span> <span class="p">:</span>
+            
+            <span class="c1"># Get the queue&#39;s lock</span>
+            <span class="k">with</span>  <span class="bp">self</span><span class="o">.</span><span class="n">cond</span> <span class="p">:</span>
+                
+                <span class="c1"># Queue is empty or pop predicate fails. There is no message.</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ifree</span> <span class="p">]</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_popred</span><span class="p">(</span> <span class="p">)</span> <span class="p">:</span>
+                    <span class="k">return</span>
+            
+            <span class="c1"># Increment instance read serial number, modulo max queue count val.</span>
+            <span class="k">if</span>  <span class="bp">self</span><span class="o">.</span><span class="n">slno</span> <span class="o">==</span> <span class="n">hdr</span><span class="o">.</span><span class="n">maxqueuehead</span> <span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">slno</span>  <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">else</span> <span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">slno</span> <span class="o">+=</span> <span class="mi">1</span>
+            
+            <span class="c1"># Cast memoryview of message&#39;s counters</span>
+            <span class="n">hmsg</span> <span class="o">=</span> \
+             <span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="p">[</span> <span class="bp">self</span><span class="o">.</span><span class="n">i</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">i</span> <span class="o">+</span> <span class="n">hdr</span><span class="o">.</span><span class="n">sizemsghead</span> <span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span> <span class="n">hdr</span><span class="o">.</span><span class="n">fmtmsghead</span> <span class="p">)</span>
+            
+            <span class="c1"># Locate the first byte past the message counters</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">i</span> <span class="o">+</span> <span class="n">hdr</span><span class="o">.</span><span class="n">sizemsghead</span>  <span class="p">)</span>  <span class="o">%</span>  <span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="p">)</span>
+            
+            <span class="c1"># Set read position to first byte past the end of message body</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">i</span> <span class="o">=</span> <span class="p">(</span> <span class="n">b</span> <span class="o">+</span> <span class="nb">sum</span><span class="p">(</span> <span class="n">hmsg</span><span class="p">[</span><span class="n">hdr</span><span class="o">.</span><span class="n">mbcnt</span><span class="p">]</span> <span class="p">)</span> <span class="p">)</span>  <span class="o">%</span>  <span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="p">)</span>
+
+            <span class="c1"># If the read position is too close to the end of the queue body for</span>
+            <span class="c1"># a complete set of message counters to fit then it must skip those</span>
+            <span class="c1"># final bytes and go back to the start of the queue body.</span>
+            <span class="k">if</span>  <span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">i</span>  <span class="o">&lt;</span>  <span class="n">hdr</span><span class="o">.</span><span class="n">sizemsghead</span> <span class="p">:</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+            
+            <span class="c1"># Generate message details</span>
+            <span class="k">yield</span>  <span class="p">(</span> <span class="n">hmsg</span> <span class="p">,</span> <span class="n">b</span> <span class="p">)</span>
+            
+
+    <span class="k">def</span>  <span class="nf">_read</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="n">b</span> <span class="p">,</span> <span class="n">db</span> <span class="p">)</span> <span class="p">:</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Read db bytes from queue body, starting at byte b. If b is less than db</span>
+<span class="sd">        bytes from the end of the queue then the read wraps around to the start</span>
+<span class="sd">        of the queue body and returns a concatenated result.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns tuple ( bstr , b ). bstr is the byte string that is read from</span>
+<span class="sd">        the queue body. b is the first byte past the end of the read, modulo</span>
+<span class="sd">        queue body size.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="c1"># Number of bytes readable before the end of the queue body</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span> <span class="n">db</span> <span class="p">,</span> <span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="p">)</span> <span class="o">-</span> <span class="n">b</span> <span class="p">)</span>
+        
+        <span class="c1"># Read out bytes</span>
+        <span class="n">bstr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="p">[</span> <span class="n">b</span> <span class="p">:</span> <span class="n">b</span> <span class="o">+</span> <span class="n">n</span> <span class="p">]</span><span class="o">.</span><span class="n">tobytes</span><span class="p">(</span> <span class="p">)</span>
+        
+        <span class="c1"># Read must wrap around to start of queue body</span>
+        <span class="k">if</span>  <span class="n">n</span> <span class="o">&lt;</span> <span class="n">db</span> <span class="p">:</span> <span class="n">bstr</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="p">[</span> <span class="p">:</span> <span class="n">db</span> <span class="o">-</span> <span class="n">n</span> <span class="p">]</span><span class="o">.</span><span class="n">tobytes</span><span class="p">(</span> <span class="p">)</span>
+        
+        <span class="c1"># Advance b past the read</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="p">(</span> <span class="n">b</span> <span class="o">+</span> <span class="n">db</span> <span class="p">)</span>  <span class="o">%</span>  <span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="p">)</span>
+        
+        <span class="c1"># Return the byte string</span>
+        <span class="k">return</span>  <span class="n">bstr</span> <span class="p">,</span> <span class="n">b</span>
+
+
+    <span class="k">def</span>  <span class="nf">_free</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="n">h</span> <span class="p">)</span> <span class="p">:</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Free queue memory that stores message with header counter memoryview h.</span>
+<span class="sd">        It is assumed that this message is at the queue head and that its read</span>
+<span class="sd">        count is depleted.</span>
+<span class="sd">        </span>
+<span class="sd">        DO NOT USE THIS unless the lock has been acquired, first.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="c1"># Bytes in message, including counters and all byte strings</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">hdr</span><span class="o">.</span><span class="n">sizemsghead</span>  <span class="o">+</span>  <span class="nb">sum</span><span class="p">(</span> <span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">mbcnt</span> <span class="p">]</span> <span class="p">)</span>
+        
+        <span class="c1"># Advance head of queue, modulo size of queue body</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ihead</span> <span class="p">]</span> <span class="o">=</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ihead</span> <span class="p">]</span> <span class="o">+</span> <span class="n">n</span> <span class="p">)</span>  <span class="o">%</span>  <span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="p">)</span>
+        
+        <span class="c1"># Free up those bytes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ifree</span> <span class="p">]</span> <span class="o">+=</span> <span class="n">n</span>
+        
+        <span class="c1"># Head is now too close to end of queue body for a full set of message</span>
+        <span class="c1"># counters. Wrap around back to the start of queue body and free the</span>
+        <span class="c1"># skipped bytes.</span>
+        <span class="k">if</span>  <span class="p">(</span> <span class="n">n</span> <span class="o">:=</span> <span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ihead</span> <span class="p">]</span> <span class="p">)</span>  <span class="o">&lt;</span>  <span class="n">hdr</span><span class="o">.</span><span class="n">sizemsghead</span> <span class="p">:</span>
+            
+            <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ihead</span> <span class="p">]</span>  <span class="o">=</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ifree</span> <span class="p">]</span> <span class="o">+=</span> <span class="n">n</span>
+
+
+    <span class="c1">#-- Principal API methods --#</span>
+    
+    <span class="c1"># Creation / Deletion #</span>
+    
+<div class="viewcode-block" id="PySyncQ.open"><a class="viewcode-back" href="../../pysyncq.html#pysyncq.pysyncq.PySyncQ.open">[docs]</a>    <span class="k">def</span>  <span class="nf">open</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="n">sender</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span> <span class="n">mp</span><span class="o">.</span><span class="n">current_process</span><span class="p">(</span> <span class="p">)</span><span class="o">.</span><span class="n">pid</span> <span class="p">)</span> <span class="p">,</span>
+                       <span class="n">filtself</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">)</span> <span class="p">:</span>
+<span class="w">    </span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        open( sender = pid , filtself = True ) registers the current process</span>
+<span class="sd">        with the queue. sender is a string naming the process in each message</span>
+<span class="sd">        that it sends. By default, this is the current process ID i.e. pid.</span>
+<span class="sd">        Messages filtself </span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="c1"># Store sender string as bytes that can go directly into shared memory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sender</span> <span class="o">=</span> <span class="n">sender</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span> <span class="p">)</span>
+        
+        <span class="c1"># If true then add local sender name to message filter list</span>
+        <span class="k">if</span>  <span class="n">filtself</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scrnsend</span><span class="o">.</span><span class="n">add</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">sender</span> <span class="p">)</span>
+        
+        <span class="c1"># Get queue lock. Increment the process counter in the queue header. And</span>
+        <span class="c1"># set this instance&#39;s read or queue position to the tail; read only the</span>
+        <span class="c1"># messages that come after this instance/process has registered. The</span>
+        <span class="c1"># assignment to attribute i should provoke any necessary copy-on-write.</span>
+        <span class="k">with</span>  <span class="bp">self</span><span class="o">.</span><span class="n">cond</span> <span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">iproc</span> <span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">itail</span> <span class="p">]</span></div>
+        
+    
+<div class="viewcode-block" id="PySyncQ.close"><a class="viewcode-back" href="../../pysyncq.html#pysyncq.pysyncq.PySyncQ.close">[docs]</a>    <span class="k">def</span>  <span class="nf">close</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">)</span> <span class="p">:</span>
+<span class="w">        </span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        Closes the shared memory. And unlinks if this is the last closure.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="c1"># Return immediately if shared memory was already closed</span>
+        <span class="k">if</span>  <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">shm</span> <span class="p">:</span> <span class="k">return</span>
+        
+        <span class="c1"># Get queue lock.</span>
+        <span class="k">with</span>  <span class="bp">self</span><span class="o">.</span><span class="n">cond</span> <span class="p">:</span>
+        
+            <span class="c1"># Scan through any unread messages and decrement the read counter.</span>
+            <span class="c1"># Be careful to release memoryviews.</span>
+            <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_next</span><span class="p">(</span> <span class="p">)</span> <span class="p">:</span>
+                
+                <span class="n">m</span><span class="p">[</span> <span class="mi">0</span> <span class="p">][</span> <span class="n">hdr</span><span class="o">.</span><span class="n">iread</span> <span class="p">]</span> <span class="o">-=</span> <span class="mi">1</span>
+                <span class="n">m</span><span class="p">[</span> <span class="mi">0</span> <span class="p">]</span><span class="o">.</span><span class="n">release</span><span class="p">(</span> <span class="p">)</span>
+            
+            <span class="c1"># Decrement the process counter</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">iproc</span> <span class="p">]</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">iproc</span> <span class="p">]</span> <span class="o">-=</span> <span class="mi">1</span>
+            
+            <span class="c1"># But remember the counter value, we unlink if all instances closed.</span>
+            <span class="n">noproc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">iproc</span> <span class="p">]</span> <span class="o">==</span> <span class="mi">0</span>
+        
+        <span class="c1"># Take care to release memoryviews, or else .close raises an exception.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="o">.</span><span class="n">release</span><span class="p">(</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="o">.</span><span class="n">release</span><span class="p">(</span> <span class="p">)</span>
+        
+        <span class="c1"># Close local copy of shared memory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shm</span><span class="o">.</span><span class="n">close</span> <span class="p">(</span> <span class="p">)</span>
+        
+        <span class="c1"># Unlink if this is the last close</span>
+        <span class="k">if</span>  <span class="n">noproc</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">shm</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span> <span class="p">)</span>
+        
+        <span class="c1"># Signal that shared memory has been closed by this instance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shm</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+    <span class="c1"># Message handling #</span>
+    
+<div class="viewcode-block" id="PySyncQ.append"><a class="viewcode-back" href="../../pysyncq.html#pysyncq.pysyncq.PySyncQ.append">[docs]</a>    <span class="k">def</span>  <span class="nf">append</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="n">msgtype</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span> <span class="p">,</span> <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span> <span class="p">,</span> <span class="n">block</span> <span class="o">=</span> <span class="kc">False</span> <span class="p">,</span>
+                         <span class="n">timer</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="p">)</span> <span class="p">:</span>
+<span class="w">    </span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        append ( self , msgtype = &#39;&#39; , msg = &#39;&#39; , block = False , timer = 0.5 )</span>
+<span class="sd">        </span>
+<span class="sd">        Adds a new message to the tail of the queue. The message header stores</span>
+<span class="sd">        the sender name and msgtype as message type. msg forms the main body of</span>
+<span class="sd">        the message. If msgtype or msg are not already str or bytes then they</span>
+<span class="sd">        are first cast to str before casting to bytes with the default encoding.</span>
+<span class="sd">        </span>
+<span class="sd">        If the queue lacks sufficient free space in which to write the message</span>
+<span class="sd">        header and body then a MemoryError exception is raised, unless block is</span>
+<span class="sd">        True. Then append will wait until there is enough room in the queue.</span>
+<span class="sd">        </span>
+<span class="sd">        append will wait indefinitely for free space if timer is None. But timer</span>
+<span class="sd">        can be a float that specifies the number of seconds to wait for. If the</span>
+<span class="sd">        timer expires before the message is appended to the queue then the</span>
+<span class="sd">        MemoryError exception is raise.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="c1"># Internally, messages have the format</span>
+        <span class="c1"># [ message counters , message sender , message type , message body ]</span>
+        
+        <span class="k">def</span>  <span class="nf">argbytes</span> <span class="p">(</span> <span class="n">arg</span> <span class="p">)</span> <span class="p">:</span>
+<span class="w">            </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">            Guarantee that input args are converted to byte strings from the arg</span>
+<span class="sd">            cast to str.</span>
+<span class="sd">            &#39;&#39;&#39;</span>
+            <span class="k">return</span>  <span class="n">arg</span>  <span class="k">if</span>  <span class="nb">type</span><span class="p">(</span> <span class="n">arg</span> <span class="p">)</span> <span class="ow">is</span> <span class="nb">bytes</span>  <span class="k">else</span>  <span class="nb">str</span><span class="p">(</span> <span class="n">arg</span> <span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span> <span class="p">)</span>
+        
+        <span class="c1"># Cast message type and body to bytes</span>
+        <span class="n">btype</span> <span class="o">=</span> <span class="n">argbytes</span><span class="p">(</span> <span class="n">msgtype</span> <span class="p">)</span>
+        <span class="n">bmsg</span>  <span class="o">=</span> <span class="n">argbytes</span><span class="p">(</span>     <span class="n">msg</span> <span class="p">)</span>
+        
+        <span class="c1"># Total number of bytes required by the message, including counters</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">hdr</span><span class="o">.</span><span class="n">sizemsghead</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">sender</span> <span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span> <span class="n">btype</span> <span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span> <span class="n">bmsg</span> <span class="p">)</span>
+        
+        <span class="c1"># Build a predicate function that returns True when there is enough</span>
+        <span class="c1"># space in the queue for the message.</span>
+        <span class="n">free</span> <span class="o">=</span> <span class="k">lambda</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ifree</span> <span class="p">]</span> <span class="o">&gt;=</span> <span class="n">n</span>
+        
+        <span class="c1"># Get queue lock, the remainder of append runs with possession of lock</span>
+        <span class="k">with</span>  <span class="bp">self</span><span class="o">.</span><span class="n">cond</span> <span class="p">:</span>
+        
+            <span class="c1"># The queue is too full</span>
+            <span class="k">if</span>  <span class="ow">not</span> <span class="p">(</span> <span class="n">free</span><span class="p">(</span> <span class="p">)</span>  <span class="ow">or</span>  <span class="n">block</span>  <span class="ow">and</span>  
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">cond</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span> <span class="n">free</span> <span class="p">,</span> <span class="n">timer</span> <span class="p">)</span> <span class="p">)</span> <span class="p">:</span>
+            
+                <span class="k">raise</span>  <span class="ne">MemoryError</span><span class="p">(</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="si">}</span><span class="s1"> byte message &gt; &#39;</span>
+                                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span><span class="w"> </span><span class="n">hdr</span><span class="o">.</span><span class="n">ifree</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="si">}</span><span class="s1"> free bytes.&#39;</span> <span class="p">)</span>
+                
+            <span class="c1"># If we got here then there is enough free space in the queue. Get</span>
+            <span class="c1"># position of queue&#39;s tail, which is where the message write starts.</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">itail</span> <span class="p">]</span>
+            
+            <span class="c1"># Create a memoryview for the message header counters</span>
+            <span class="n">hmsg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="p">[</span> <span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="n">hdr</span><span class="o">.</span><span class="n">sizemsghead</span> <span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span> <span class="n">hdr</span><span class="o">.</span><span class="n">fmtmsghead</span> <span class="p">)</span>
+            
+            <span class="c1"># Load message counters. Number of reads from message must equal the</span>
+            <span class="c1"># number of registered processes, one read per process.</span>
+            <span class="n">hmsg</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">iread</span> <span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">iproc</span> <span class="p">]</span>
+            <span class="n">hmsg</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">isend</span> <span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">sender</span> <span class="p">)</span>
+            <span class="n">hmsg</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">itype</span> <span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span> <span class="n">btype</span> <span class="p">)</span>
+            <span class="n">hmsg</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ibody</span> <span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span> <span class="n">bmsg</span> <span class="p">)</span>
+            
+            <span class="c1"># Advance the byte index past the message counters</span>
+            <span class="n">i</span> <span class="o">+=</span> <span class="n">hdr</span><span class="o">.</span><span class="n">sizemsghead</span>
+            
+            <span class="c1"># Byte strings</span>
+            <span class="k">for</span>  <span class="n">b</span>  <span class="ow">in</span>  <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">sender</span> <span class="p">,</span> <span class="n">btype</span> <span class="p">,</span> <span class="n">bmsg</span> <span class="p">)</span> <span class="p">:</span>
+                
+                <span class="c1"># Bytes remaining prior to the end of the queue body</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="p">)</span> <span class="o">-</span> <span class="n">i</span>
+                
+                <span class="c1"># The string will fit in a contiguous block</span>
+                <span class="k">if</span>  <span class="n">r</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span> <span class="n">b</span> <span class="p">)</span> <span class="p">:</span>
+                
+                    <span class="c1"># Slice assign the entire byte string</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="p">[</span> <span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span> <span class="n">b</span> <span class="p">)</span> <span class="p">]</span> <span class="o">=</span> <span class="n">b</span>
+                    
+                    <span class="c1"># Advance write position to next free byte</span>
+                    <span class="n">i</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span> <span class="n">b</span> <span class="p">)</span>
+                    
+                <span class="c1"># The queue is a circular buffer. Bisect the string between the</span>
+                <span class="c1"># end of the queue body and the start.</span>
+                <span class="k">else</span> <span class="p">:</span>
+                    
+                    <span class="c1"># Slice assign what we can to the end of the queue body</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="p">[</span> <span class="n">i</span> <span class="p">:</span> <span class="p">]</span> <span class="o">=</span> <span class="n">b</span><span class="p">[</span> <span class="p">:</span> <span class="n">r</span> <span class="p">]</span>
+                    
+                    <span class="c1"># Number of bytes from string that are still unwritten</span>
+                    <span class="n">r</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span> <span class="n">b</span> <span class="p">)</span> <span class="o">-</span> <span class="n">r</span>
+                    
+                    <span class="c1"># Cycle to the start of the queue body and write remainder</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="p">[</span> <span class="p">:</span> <span class="n">r</span> <span class="p">]</span> <span class="o">=</span> <span class="n">b</span><span class="p">[</span> <span class="o">-</span><span class="n">r</span> <span class="p">:</span> <span class="p">]</span>
+                    
+                    <span class="c1"># Write position at next free byte</span>
+                    <span class="n">i</span> <span class="o">=</span> <span class="n">r</span>
+            
+            <span class="c1"># Decrement length of message from queue&#39;s free space counter</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ifree</span> <span class="p">]</span> <span class="o">-=</span> <span class="n">n</span>
+            
+            <span class="c1"># Find next byte past new message, the new tail position.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">itail</span> <span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+            
+            <span class="c1"># Message counters require contiguous bytes. But the new tail</span>
+            <span class="c1"># position is too close to the end of the queue body for that. We</span>
+            <span class="c1"># must position the tail at the start of the queue body and discard</span>
+            <span class="c1"># the bytes at the end.</span>
+            <span class="k">if</span>  <span class="p">(</span> <span class="n">r</span> <span class="o">:=</span> <span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">itail</span> <span class="p">]</span> <span class="p">)</span> <span class="o">&lt;</span> <span class="n">hdr</span><span class="o">.</span><span class="n">sizemsghead</span> <span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">itail</span> <span class="p">]</span>  <span class="o">=</span> <span class="mi">0</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ifree</span> <span class="p">]</span> <span class="o">-=</span> <span class="n">r</span>
+            
+            <span class="c1"># Increment the message serial number, modulo max value of counter</span>
+            <span class="k">if</span>  <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">islno</span> <span class="p">]</span> <span class="o">==</span> <span class="n">hdr</span><span class="o">.</span><span class="n">maxqueuehead</span> <span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">islno</span> <span class="p">]</span>  <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">else</span> <span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">islno</span> <span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            
+            <span class="c1"># Wake up any process that is waiting on the state of the queue</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cond</span><span class="o">.</span><span class="n">notify_all</span><span class="p">(</span> <span class="p">)</span>
+        
+        <span class="c1"># Dropped out of with statement - queue lock has been released. But the</span>
+        <span class="c1"># message counter memoryview remains. It refers to the shared memory,</span>
+        <span class="c1"># which cannot close properly until this memoryview has been released.</span>
+        <span class="c1"># We do it explicitly, in case the object is not destroyed through</span>
+        <span class="c1"># garbage collection before the .close method is invoked.</span>
+        <span class="n">hmsg</span><span class="o">.</span><span class="n">release</span><span class="p">(</span> <span class="p">)</span></div>
+         
+        
+<div class="viewcode-block" id="PySyncQ.pop"><a class="viewcode-back" href="../../pysyncq.html#pysyncq.pysyncq.PySyncQ.pop">[docs]</a>    <span class="k">def</span>  <span class="nf">pop</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="n">block</span> <span class="o">=</span> <span class="kc">False</span> <span class="p">,</span> <span class="n">timer</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="p">,</span> <span class="n">decode</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">)</span> <span class="p">:</span>
+<span class="w">    </span>
+<span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">        pop ( block = False , timer = 0.5 , decode = True )</span>
+<span class="sd">        </span>
+<span class="sd">        Reads the next next unread message from the queue and returns the tuple</span>
+<span class="sd">        ( sender , type , msg ) ... see append. If the sender or type string is</span>
+<span class="sd">        found in the scrnsend or scrntype sets, respectively, then the message</span>
+<span class="sd">        is skipped, and pop looks for the next unread message in the queue. If</span>
+<span class="sd">        there are no unread and unscreened messages then None is returned,</span>
+<span class="sd">        unless block is True.</span>
+<span class="sd">        </span>
+<span class="sd">        Then pop will wait until there is a new message to read. Pop will wait</span>
+<span class="sd">        indefinitely if timer is None. Otherwise, timer can be a float that</span>
+<span class="sd">        gives the number of seconds that pop will wait for. If the timer expires</span>
+<span class="sd">        before an unread message becomes available then None will be returned.</span>
+<span class="sd">        </span>
+<span class="sd">        By default, messages are decoded from bytes to str with the default</span>
+<span class="sd">        encoding. But if decode is False then the raw bytes are returned.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="c1"># Get time at start of function call. We use this to subtract elapsed</span>
+        <span class="c1"># time from repeated waits on the condition variable, if frequent</span>
+        <span class="c1"># screened messages are appended to the queue by another instance.</span>
+        <span class="k">if</span>  <span class="n">timer</span> <span class="p">:</span> <span class="n">tin</span> <span class="o">=</span> <span class="n">time</span><span class="p">(</span> <span class="p">)</span>
+        
+        <span class="c1"># Read loop</span>
+        <span class="k">while</span>  <span class="kc">True</span> <span class="p">:</span>
+        
+            <span class="c1"># Scan queue body for next unread message</span>
+            <span class="k">for</span>  <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_next</span><span class="p">(</span> <span class="p">)</span> <span class="p">:</span>
+                
+                <span class="c1"># Unpack msg counters and index of 1st byte to follow them</span>
+                <span class="p">(</span> <span class="n">h</span> <span class="p">,</span> <span class="n">b</span> <span class="p">)</span> <span class="o">=</span> <span class="n">m</span>
+                
+                <span class="c1"># Accumulate message header byte strings into this list, here</span>
+                <span class="n">bstr</span> <span class="o">=</span> <span class="p">[</span> <span class="p">]</span>
+                
+                <span class="c1"># At this point we have a message, but it might become screened</span>
+                <span class="k">try</span> <span class="p">:</span>
+                    
+                    <span class="c1"># Message header strings, and corresponding screening sets</span>
+                    <span class="k">for</span>  <span class="p">(</span> <span class="n">i</span> <span class="p">,</span> <span class="n">s</span> <span class="p">)</span>  <span class="ow">in</span>  <span class="nb">zip</span><span class="p">(</span> <span class="n">hdr</span><span class="o">.</span><span class="n">mcnti</span> <span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">scrns</span> <span class="p">)</span> <span class="p">:</span>
+                        
+                        <span class="c1"># Read byte string from shared memory</span>
+                        <span class="n">read</span> <span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_read</span><span class="p">(</span> <span class="n">b</span> <span class="p">,</span> <span class="n">h</span><span class="p">[</span> <span class="n">i</span> <span class="p">]</span> <span class="p">)</span>
+                        
+                        <span class="c1"># This message has a header string that is screened</span>
+                        <span class="k">if</span>  <span class="n">read</span> <span class="ow">in</span> <span class="n">s</span> <span class="p">:</span> <span class="k">raise</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ScreenedMessage</span>
+                        
+                        <span class="c1"># Append newly read byte string to list</span>
+                        <span class="n">bstr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">read</span> <span class="p">)</span>
+                    
+                <span class="c1"># We found a message on the queue, but it is screened</span>
+                <span class="k">except</span>  <span class="n">hdr</span><span class="o">.</span><span class="n">ScreenedMessage</span> <span class="p">:</span> <span class="n">ret</span> <span class="o">=</span> <span class="kc">None</span>
+                
+                <span class="c1"># A genuine error has occurred, pass it on i.e. re-raise it</span>
+                <span class="k">except</span>  <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span> <span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span> <span class="sa">f</span><span class="s1">&#39;Unexpected </span><span class="si">{</span><span class="n">err</span><span class="si">=}</span><span class="s1">, </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="si">=}</span><span class="s1">&#39;</span> <span class="p">)</span>
+                    <span class="k">raise</span>
+                
+                <span class="c1"># Message found! Read message body. Build return tuple </span>
+                <span class="c1"># containing strings. Break for loop to skip its else statement.</span>
+                <span class="k">else</span> <span class="p">:</span>
+                    <span class="n">bstr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>  <span class="bp">self</span><span class="o">.</span><span class="n">_read</span><span class="p">(</span> <span class="n">b</span> <span class="p">,</span> <span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ibody</span> <span class="p">]</span> <span class="p">)[</span> <span class="mi">0</span> <span class="p">]</span>  <span class="p">)</span>
+                    <span class="n">ret</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span> <span class="n">b</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span> <span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bstr</span> <span class="p">)</span> <span class="k">if</span> <span class="n">decode</span> <span class="k">else</span> \
+                          <span class="nb">tuple</span><span class="p">(</span> <span class="n">bstr</span> <span class="p">)</span>
+                    <span class="k">break</span>
+                
+                <span class="c1"># Screened or not, we must decrement the read counter and alert</span>
+                <span class="c1"># anything else that is blocking on the condition variable, but</span>
+                <span class="c1"># only after freeing queue memory if this was the last read.</span>
+                <span class="c1"># Guarantee message memoryview is released.</span>
+                <span class="k">finally</span> <span class="p">:</span>
+                    <span class="k">with</span>  <span class="bp">self</span><span class="o">.</span><span class="n">cond</span> <span class="p">:</span>
+                        <span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">iread</span> <span class="p">]</span> <span class="o">-=</span> <span class="mi">1</span> <span class="p">;</span>
+                        <span class="k">if</span>  <span class="ow">not</span> <span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">iread</span> <span class="p">]</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_free</span><span class="p">(</span> <span class="n">h</span> <span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">cond</span><span class="o">.</span><span class="n">notify_all</span><span class="p">(</span> <span class="p">)</span>
+                    <span class="n">h</span><span class="o">.</span><span class="n">release</span><span class="p">(</span> <span class="p">)</span>
+            
+            <span class="c1"># No message was found by _next iterator, for loop drops here</span>
+            <span class="k">else</span> <span class="p">:</span> <span class="n">ret</span> <span class="o">=</span> <span class="kc">None</span>
+            
+            <span class="c1"># Un-screened and un-read message was found. Return it in a tuple</span>
+            <span class="c1"># with format: message ( sender , type , body ). None evaluates as</span>
+            <span class="c1"># False.</span>
+            <span class="k">if</span>  <span class="n">ret</span> <span class="p">:</span> <span class="k">return</span> <span class="n">ret</span>
+            
+            <span class="c1"># No unscreened message was found, but we may block on new messages</span>
+            <span class="k">if</span>  <span class="n">block</span> <span class="p">:</span>
+                
+                <span class="c1"># How much time has passed since the call to pop( )?</span>
+                <span class="k">if</span>  <span class="n">timer</span> <span class="p">:</span> <span class="n">dt</span> <span class="o">=</span> <span class="n">timer</span> <span class="o">-</span> <span class="p">(</span> <span class="n">time</span><span class="p">(</span> <span class="p">)</span> <span class="o">-</span> <span class="n">tin</span> <span class="p">)</span>
+                <span class="k">else</span> <span class="p">:</span> <span class="n">dt</span> <span class="o">=</span> <span class="kc">None</span>
+                
+                <span class="c1"># Block on the condition variable</span>
+                <span class="k">with</span>  <span class="bp">self</span><span class="o">.</span><span class="n">cond</span> <span class="p">:</span>
+                
+                  <span class="c1"># The predicate returns true if there is a message before</span>
+                  <span class="c1"># timeout</span>
+                  <span class="k">if</span>  <span class="bp">self</span><span class="o">.</span><span class="n">cond</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">_popred</span> <span class="p">,</span> <span class="n">dt</span> <span class="p">)</span> <span class="p">:</span> <span class="k">continue</span>
+            
+            <span class="c1"># We only get here if no message was found and any blocking timed</span>
+            <span class="c1"># out</span>
+            <span class="k">return</span>  <span class="kc">None</span></div></div>
+
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Jackson Smith.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

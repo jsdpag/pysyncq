@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Developer notes &mdash; pysyncq 0.0.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="pysyncq.tests package" href="pysyncq.tests.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            pysyncq
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Get started with pysyncq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">pysyncq</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Developer notes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#organisation-of-shared-memory">Organisation of shared memory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#circular-buffering-of-messages">Circular buffering of messages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#current-design-limitations">Current design limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#message-write-and-read-serial-numbers">Message write and read Serial Numbers</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">pysyncq</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Developer notes</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/dev.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="developer-notes">
+<h1>Developer notes<a class="headerlink" href="#developer-notes" title="Permalink to this heading"></a></h1>
+<section id="organisation-of-shared-memory">
+<h2>Organisation of shared memory<a class="headerlink" href="#organisation-of-shared-memory" title="Permalink to this heading"></a></h2>
+<p>Shared memory is organised with a queue header followed by a queue body:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span> <span class="n">Queue</span> <span class="n">header</span> <span class="p">][</span> <span class="n">Queue</span> <span class="n">body</span> <span class="p">]</span>
+<span class="p">[</span> <span class="n">Header</span> <span class="n">counters</span> <span class="p">][</span> <span class="n">Message</span> <span class="mi">1</span> <span class="p">,</span> <span class="n">Message</span> <span class="mi">2</span> <span class="p">,</span> <span class="o">...</span> <span class="p">]</span>
+</pre></div>
+</div>
+<p>The queue header counters are a block of values:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span> <span class="n">processes</span> <span class="p">,</span> <span class="n">free</span> <span class="nb">bytes</span> <span class="p">,</span> <span class="n">head</span> <span class="p">,</span> <span class="n">tail</span><span class="p">,</span> <span class="n">write</span> <span class="n">serial</span> <span class="n">number</span> <span class="p">]</span>
+</pre></div>
+</div>
+<p>where each element is a separate counter with the following jobs:</p>
+<ul class="simple">
+<li><p>processes - Count the number of processes that are connected to the queue.</p></li>
+<li><p>free bytes - Number of bytes available in the queue for new messages.</p></li>
+<li><p>head - Locates the location where the next message will be written.</p></li>
+<li><p>tail - Locates the oldest message in the queue.</p></li>
+<li><p>write serial number - Each message written to the queue, no matter which
+process writes it, increments the serial number counter.</p></li>
+</ul>
+<p>Queue counters are implemented with a relatively large integer type.
+See header.py fmtqueuehead. As of v0.0.0 this is an unsigned long long,
+or 64-bit integer on a standard Linux distribution. Hence, the counters
+could overflow. But only under rather unusual circumstances.</p>
+<p>Likewise, each message written to the queue has the organisation:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span> <span class="n">Message</span> <span class="n">header</span> <span class="p">][</span> <span class="n">Byte</span> <span class="n">strings</span> <span class="p">]</span>
+<span class="p">[</span> <span class="n">Message</span> <span class="n">header</span> <span class="n">counters</span> <span class="p">][</span> <span class="n">sender</span> <span class="p">,</span> <span class="n">message</span> <span class="nb">type</span> <span class="p">,</span> <span class="n">message</span> <span class="n">body</span> <span class="p">]</span>
+</pre></div>
+</div>
+<p>With the following functions:</p>
+<ul class="simple">
+<li><p>header counters - See below.</p></li>
+<li><p>sender - Byte string identifying process that wrote the message.</p></li>
+<li><p>type - Byte string giving the type of message.</p></li>
+<li><p>body - The main contents of the message.</p></li>
+</ul>
+<p>sender, type, and body are byte strings encoded from strings using the
+default encoding format e.g. UTF-8.</p>
+<p>Counters are a block of values:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span> <span class="n">reads</span> <span class="p">,</span> <span class="n">sender</span> <span class="nb">bytes</span> <span class="p">,</span> <span class="nb">type</span> <span class="nb">bytes</span> <span class="p">,</span> <span class="n">body</span> <span class="nb">bytes</span> <span class="p">]</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>reads - Number of reads remaining on this message. The number is
+decremented once for each process that reads the message. When this
+is reduced to zero then the queue head jumps to the next message,
+and space is freed.</p></li>
+<li><p>sender, type, body - The number of bytes in each byte string.</p></li>
+</ul>
+<p>Counters are in a slightly smaller integer type e.g. unsigned 32-bit integer.</p>
+</section>
+<section id="circular-buffering-of-messages">
+<h2>Circular buffering of messages<a class="headerlink" href="#circular-buffering-of-messages" title="Permalink to this heading"></a></h2>
+<p>One problem is that the message header counters require a contiguous block of
+bytes. But messages can be any length that will fit within the availbe space of
+the queue. Therefore, the end of one message may not leave enough space between
+itself and the end of the queue body. Under these circumstances, the read or
+write position, the queue head or tail will skip the trailing bytes and jump
+back to the first byte of the queue body.</p>
+<p>This is not an issue when a contiguous block of bytes do fit before the end of
+the queue body. If the byte strings are too long to fit, then these are simply
+wrapped around to the head of the queue body, like in a circular buffer.</p>
+<p>For instance, a conventional message may be written in one stretch:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">Queue</span> <span class="n">header</span><span class="p">][</span><span class="n">Queue</span> <span class="n">body</span><span class="p">]</span>
+<span class="p">[</span><span class="n">Queue</span> <span class="n">header</span><span class="p">][</span> <span class="o">...</span> <span class="p">,</span> <span class="p">(</span><span class="n">Headers</span><span class="p">)(</span><span class="n">Bytes</span><span class="p">)</span> <span class="p">,</span> <span class="o">...</span> <span class="p">]</span>
+</pre></div>
+</div>
+<p>Close to the end of the queue body, it may be necessary to wrap the byte
+strings. Say that a message with length N byte strings is written with the
+message counters M bytes from the end of the queue body:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">Queue</span> <span class="n">header</span><span class="p">][</span> <span class="p">(</span><span class="n">Bytes</span> <span class="n">M</span><span class="o">+</span><span class="mi">1</span> <span class="n">to</span> <span class="n">N</span><span class="p">)</span> <span class="p">,</span> <span class="o">...</span> <span class="p">,</span> <span class="p">(</span><span class="n">Headers</span><span class="p">)(</span><span class="n">Bytes</span> <span class="mi">1</span> <span class="n">to</span> <span class="n">M</span><span class="p">)</span> <span class="p">]</span>
+</pre></div>
+</div>
+<p>Thus, reading will first take the M bytes near the end of the body and
+concatenate the N - M bytes from the start:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">Bytes</span> <span class="mi">1</span> <span class="n">to</span> <span class="n">M</span><span class="p">)(</span><span class="n">Bytes</span> <span class="n">M</span><span class="o">+</span><span class="mi">1</span> <span class="n">to</span> <span class="n">N</span><span class="p">)</span> <span class="o">=</span> <span class="p">[</span><span class="n">N</span> <span class="nb">bytes</span> <span class="ow">in</span> <span class="n">correct</span> <span class="n">order</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Any time that there are not enough bytes for a set of message header counters,
+then the message will start from the beginning of the queue body:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">Queue</span> <span class="n">header</span><span class="p">][(</span><span class="n">New</span> <span class="n">message</span><span class="p">)</span> <span class="p">,</span> <span class="o">...</span> <span class="p">(</span><span class="n">Old</span> <span class="n">message</span><span class="p">)</span> <span class="p">,</span> <span class="p">(</span><span class="n">K</span> <span class="nb">bytes</span> <span class="n">skipped</span><span class="p">)</span> <span class="p">]</span>
+</pre></div>
+</div>
+<p>Where K &lt; length of message header.</p>
+</section>
+<section id="current-design-limitations">
+<h2>Current design limitations<a class="headerlink" href="#current-design-limitations" title="Permalink to this heading"></a></h2>
+<p>At the time of writing v0.0.0 of pysyncq, Python v3.11 is current. The
+synchronisation primitives can only apparently be shared with another process
+if it is inherited through a process fork. This is rather unlike POSIX, which
+allows synchronisation primitives to be stored in shared memory that is linked
+to the file system. Therefore, the mutex and condition variable must be created
+by a parent process and then shared with child processes.</p>
+</section>
+<section id="message-write-and-read-serial-numbers">
+<h2>Message write and read Serial Numbers<a class="headerlink" href="#message-write-and-read-serial-numbers" title="Permalink to this heading"></a></h2>
+<p>To make full use of the queue body, it can happen that the queue head and tail
+positions sit on the same byte. This is the case for a newly created and empty
+queue, with both positions at byte zero. It can also the case if the queue
+fills up and the tail wraps around to zero before any messages are removed from
+the head. If the read position for an instance of the PySyncQ object also sits
+on the same byte then it impossible to know whether the message(s) in the queue
+have alread been read by the PySyncQ instance.</p>
+<p>Serial numbers can solve this problem. If a separate number is assigned to each
+read and to each write, then one need only to compare the read serial number
+of the PySyncQ instance with the write serial number that is kept in the queue.</p>
+<p>The queue header maintains the serial number of the most recent written message.
+Serial numbers increment by +1 for each new message. If the counter ever
+overflows then it is reset to 0. This may happen because the counter is
+maintained by a fixed number of bytes in the shared memory queue header.</p>
+<p>By contrast, each copy of the PySyncQ instance that is passed to the child
+processes will maintain its own message read serial number. In a similar manner,
+this is the number of the most recent read. And the number increments by +1 for
+each new read. Although this is a Python int, it will also be reset to 0 when it
+tries to exceed the maximum value of a queue header counter.</p>
+<p>A logical error is theoretically possible if there is a large enough queue so
+that at least one child process never reads any messages until enough have been
+written to overflow the write serial number counter back to 0, and to wrap the
+queue tail back around to the head. Now the instance read position, queue head
+and tail, and the queue write and instance read serial numbers will all be the
+same. Reads from the queue by the PySyncQ instance will fail, because this
+situation will be interpreted as though that instance had actually read all of
+the buffered messages, due to the fact that the read and tail positions are the
+same, as are the read and write serial numbers.</p>
+<p>While theoretically possible, it seems unlikely that this should ever occur in
+practice. Highly unlikely. If the queue header counters are unsigned 64-bit
+integers, then these can count up to 2 ** 64 - 1 = 18446744073709551615. That
+many messages plus 1 must be written to trigger the logical error. For that to
+happen, the queue must be large enough to contain that many message headers.
+A minimalist message can have no sender, type, or body string. Only counters.
+With four, four byte counters, each message requires 16 bytes. And with five,
+eight byte counters, the queue header requires 40 bytes. Thus, at least 40 +
+16 * 2 ** 64 = 295,147,905,179,352,825,896 bytes could be required.</p>
+<p>Any consumer grade computers will be unable to maintain queues of that size over
+the foreseeable future. While good practice will ensure that processes read
+messages at some reasonable rate. Thus, either the serial numbers will not
+overflow in most scenarios. Or, if the do, then the write number will never
+race around and catch up with the read.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="pysyncq.tests.html" class="btn btn-neutral float-left" title="pysyncq.tests package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Jackson Smith.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

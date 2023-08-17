@@ -1,7 +1,9 @@
 
 '''
 A simple demonstration of how pysyncq can be used to coordinate the behaviour of
-multiple child processes.
+multiple child processes. Program can be run from the command line:
+
+e.g. $ python demo.py
 '''
 
 
@@ -46,10 +48,12 @@ def  cfun ( q , name ) :
     # Block indefinitely on a start signal from the parent process
     ( sender , msgtype , msg ) = q.pop( block = True , timer = None )
     
-    # Sanity check
+    # Check that this was the user's start signal from the parent process
     if ( sender , msgtype , msg ) != ( 'parent' , 'user' , 'start' ) :
     
         printf( f'{ name } received improper start signal.' , flush = True )
+        
+    else : print( name , 'received start signal.' )
     
     # Read flag is lowered when stop signal received
     rdflag = True
@@ -112,57 +116,59 @@ def  cfun ( q , name ) :
 
 #--- MAIN ---#
 
-# Create a new synchronisation queue with a small buffer of shared memory
-q = pq.PySyncQ( 'pqdemo' , size = 256 )
+if __name__ == "__main__" :
 
-# Child process list
-P = [ ]
+    # Create a new synchronisation queue with a small buffer of shared memory
+    q = pq.PySyncQ( 'pqdemo' , size = 256 )
 
-# Create one child per processor. NOTE that q is an input argument for the child
-# target function. This shares the same lock amongst the child processes.
-for  i in range( mp.cpu_count( ) ) :
+    # Child process list
+    P = [ ]
 
-    P.append( mp.Process( target = cfun , args = ( q , f'Child-{i}' ) ) )
+    # Create one child per processor. NOTE that q is an input argument for the
+    # child target function. This shares the same lock amongst the child
+    # processes.
+    P = [ mp.Process( target = cfun , args = ( q , f'Child-{i}' ) )
+          for i in range( mp.cpu_count( ) ) ]
 
-# User triggers execution of child processes
-input( 'Hit <ENTER> to run child processes.' )
+    # User triggers execution of child processes
+    input( 'Hit <ENTER> to run child processes.' )
 
-# Start child process execution
-for p in P : p.start( )
+    # Start child process execution
+    for p in P : p.start( )
 
-# Open local copy of the queue. Sender name is specified as 'parent'. Default
-# behaviour is to screen one's own messages, but this can be disabled. See the
-# filtself input argument.
-q.open( 'parent' )
+    # Open local copy of the queue. Sender name is specified as 'parent'.
+    # Default behaviour is to screen one's own messages, but this can be
+    # disabled. See the filtself input argument.
+    q.open( 'parent' )
 
-# User sends start signal
-t.sleep( 0.1 )
-input( 'Hit <ENTER> to send start signal.\n'
-       'Hit <ENTER> again to send stop signal.' )
+    # User sends start signal
+    t.sleep( 0.1 )
+    input( 'Hit <ENTER> to send start signal.\n'
+           'Hit <ENTER> again to send stop signal.' )
 
-# We append messages to the queue. Sender name is automatically included.
-# Here, the message type is 'user' and the message body is 'start'
-q.append( msgtype = 'user' , msg = 'start' )
+    # We append messages to the queue. Sender name is automatically included.
+    # Here, the message type is 'user' and the message body is 'start'
+    q.append( msgtype = 'user' , msg = 'start' )
 
-# Read loop
-while  True :
+    # Read loop
+    while  True :
 
-    # Wait for user input, one second at a time
-    r , _ , _ = select( [ sys.stdin ] , [ ] , [ ] , 1 )
-    
-    # User hit enter
-    if  r : break
-    
-    # Clear queue
-    for  m in q : pass
+        # Wait for user input, one second at a time
+        r , _ , _ = select( [ sys.stdin ] , [ ] , [ ] , 1 )
+        
+        # User hit enter
+        if  r : break
+        
+        # Clear queue
+        for  m in q : pass
 
-# Stop signal
-q.append( 'user' , 'stop' , block = True , timer = 30 )
+    # Stop signal
+    q.append( 'user' , 'stop' , block = True , timer = 30 )
 
-# Join terminated child processes
-for p in P : p.join( ) ; print( f'Joined pid { p.pid }.' , flush = True )
+    # Join terminated child processes
+    for p in P : p.join( ) ; print( f'Joined pid { p.pid }.' , flush = True )
 
-# Close synchronisation queue
-q.close( )
+    # Close synchronisation queue
+    q.close( )
 
 
