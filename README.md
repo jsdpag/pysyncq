@@ -16,9 +16,11 @@ queue until every connected process has had a chance to
 read it. Hence, one process can signal all of the others
 to respond to the same information.
 
-GitHub project at [github.com/jsdpag/pysyncq](https://github.com/jsdpag/pysyncq)
+PyPI package at [pypi.org/project/pysyncq](https://pypi.org/project/pysyncq/)
 
 Online documentation at [pysyncq.readthedocs.io](https://pysyncq.readthedocs.io)
+
+GitHub project at [github.com/jsdpag/pysyncq](https://github.com/jsdpag/pysyncq)
 
 * See docs/_build/html/index.html for basic API documentation.
 * See pysyncq/tests/demo.py for a simple demonstration of  
