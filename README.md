@@ -17,6 +17,7 @@ read it. Hence, one process can signal all of the others
 to respond to the same information.
 
 GitHub project at [github.com/jsdpag/pysyncq](https://github.com/jsdpag/pysyncq)
+
 Online documentation at [pysyncq.readthedocs.io](https://pysyncq.readthedocs.io)
 
 * See docs/_build/html/index.html for basic API documentation.
