@@ -19,4 +19,5 @@ to respond to the same information.
 * See docs/_build/html/index.html for basic API documentation.
 * See pysyncq/tests/demo.py for a simple demonstration of  
 basic timing signals and message passing between processes.
-
+* See pysyncq/tests/benchmark.py for a simple benchmarking of
+the message transfer time from a sender to a reader.

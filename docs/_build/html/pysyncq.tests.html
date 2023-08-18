@@ -93,6 +93,24 @@
 <section id="submodules">
 <h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading"></a></h2>
 </section>
+<section id="module-pysyncq.tests.benchmark">
+<span id="pysyncq-tests-benchmark-module"></span><h2>pysyncq.tests.benchmark module<a class="headerlink" href="#module-pysyncq.tests.benchmark" title="Permalink to this heading"></a></h2>
+<p>Get a measure of the message transfer time from a source process to a reader
+through a PySyncQ interface. Prints table in which the average, standard
+deviation and error of the mean, minimum and maximum of the measured transfer
+times are given in milliseconds, for a range of message body sizes. Runs with 8
+processes connected to one PySyncQ object.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="pysyncq.tests.benchmark.cfun">
+<span class="sig-prename descclassname"><span class="pre">pysyncq.tests.benchmark.</span></span><span class="sig-name descname"><span class="pre">cfun</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pysyncq/tests/benchmark.html#cfun"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pysyncq.tests.benchmark.cfun" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pysyncq.tests.benchmark.transtime">
+<span class="sig-prename descclassname"><span class="pre">pysyncq.tests.benchmark.</span></span><span class="sig-name descname"><span class="pre">transtime</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">msg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">N</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pysyncq/tests/benchmark.html#transtime"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pysyncq.tests.benchmark.transtime" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
 <section id="module-pysyncq.tests.demo">
 <span id="pysyncq-tests-demo-module"></span><h2>pysyncq.tests.demo module<a class="headerlink" href="#module-pysyncq.tests.demo" title="Permalink to this heading"></a></h2>
 <p>A simple demonstration of how pysyncq can be used to coordinate the behaviour of

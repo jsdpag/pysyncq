@@ -1,9 +1,10 @@
 
 '''
 Get a measure of the message transfer time from a source process to a reader
-through a PySyncQ interface. Prints table in which the average and standard
-error of the mean of the transfer times are given in milliseconds for a range of
-message body sizes. Runs with 8 processes connected to one PySyncQ object.
+through a PySyncQ interface. Prints table in which the average, standard
+deviation and error of the mean, minimum and maximum of the measured transfer
+times are given in milliseconds, for a range of message body sizes. Runs with 8
+processes connected to one PySyncQ object.
 '''
 
 
@@ -17,7 +18,6 @@ import multiprocessing as mp
 
 # pysyncq
 from pysyncq import pysyncq as pq
-from pysyncq import  header as hdr
 
 
 #--- Globals ---#
@@ -36,7 +36,7 @@ transfers = 1_000
 
 # Number of samples to measure for the average ± SEM. Each sample times a run of
 # transfers message send/receive cycles.
-samples = 10
+samples = 30
 
 # Raise this flag to True to print each sample. Otherwise, keep it False.
 samflg = False
@@ -132,6 +132,9 @@ if __name__ == "__main__" :
     # ... connect to the queue.
     q.open( 'parent' )
     
+    # Report
+    print( 'Created queue for benchmarking\n' , q , '\n' )
+    
     # Brief wait so that child processes can all initialise
     time.sleep( 0.1 )
     
@@ -142,7 +145,7 @@ if __name__ == "__main__" :
     transtime( q , bytes( 10 ) , 100 )
     
     # Table headers
-    print( 'Msg bytes,Avg time (ms),SEM' )
+    print( 'Msg bytes,Avg time (ms),St.Dev.,SEM,Min,Max' )
     
     # Message sizes
     for p in range( 1 , maxsize + 1 ) :
@@ -153,12 +156,15 @@ if __name__ == "__main__" :
         # Take numerous samples of the unidirectional transfer time
         X = [ transtime( q , msg , transfers ) for i in range( samples ) ]
         
-        # The mean and SEM transfer time, in ms
+        # Compute statistics from samples. The mean and SEM transfer time, in ms
         avg = stat.mean( X )
-        sem = stat.stdev( X ) / samples ** 0.5
+        std = stat.stdev( X )
+        sem = std / samples ** 0.5
+        xmn = min( X )
+        xmx = max( X )
         
         # Show the result
-        print( f'{2**p},{avg:.3},{sem:.3}' )
+        print( f'{2**p},{avg:.3},{std:.3},{sem:.3},{xmn:.3},{xmx:.3}' )
     
     # Send kill signal
     q.append( 'kill' )

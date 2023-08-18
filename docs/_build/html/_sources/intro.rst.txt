@@ -43,6 +43,12 @@ This sequence of events will essentially achieve the following:
    many processes must close the queue before unlinking the shared memory from
    the file system.
 
+It may be advisable to allow child processes enough time to run the open( )
+method on their copy of the PySyncQ object e.g.::
+
+    import time
+    time.sleep( 0.1 )
+
 Sending messages
 ----------------
 

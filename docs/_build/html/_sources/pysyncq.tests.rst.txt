@@ -4,6 +4,14 @@ pysyncq.tests package
 Submodules
 ----------
 
+pysyncq.tests.benchmark module
+------------------------------
+
+.. automodule:: pysyncq.tests.benchmark
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pysyncq.tests.demo module
 -------------------------
 
