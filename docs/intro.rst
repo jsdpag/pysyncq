@@ -69,7 +69,7 @@ the program::
     except  MemoryError :
         **Respond to lack of memory in queue**
 
-Alternativley, one may block on the queue. That is, wait for enough space in the
+Alternatively, one may block on the queue. That is, wait for enough space in the
 queue to become freed::
 
     q.append( 'mtype' , 'message body' , block = True , timer = None )
@@ -86,7 +86,7 @@ The timer is given in seconds. It defaults to 0.5 second.
 Either str or bytes objects can be written directly to the queue. But any object
 **obj** that can be cast as str by str(**obj**) may be given as either the
 message type or body. Be aware that it will be read out as a str that must be
-parsed to extract any futher data types.
+parsed to extract any further data types.
 
 Reading messages
 ----------------
@@ -178,5 +178,5 @@ child target function, it is unclear whether this is supported without forking.
 Unix operating systems provide forking. But Windows will spawn child processes.
 The difference being that forked processes retain all information available to
 the parent process. While data must be pickled if it is to be preserved through
-a spawn. At the time of writing, memory locking primatives cannot be pickled.
+a spawn. At the time of writing, memory locking primitives cannot be pickled.
 
