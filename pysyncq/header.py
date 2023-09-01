@@ -5,7 +5,8 @@ Collects important constants together into a common namespace.
 
 #--- IMPORT BLOCK ---#
 
-import  resource
+from os import name as osname
+if  osname == 'posix' : import  resource
 from ctypes import c_uint , c_ulonglong , sizeof
 
 
@@ -13,7 +14,10 @@ from ctypes import c_uint , c_ulonglong , sizeof
 
 # Page size in memory e.g. 4096 bytes.
 # Default size of the shared memory.
-defsize = resource.getpagesize( )
+if  osname == 'posix' :
+    defsize = resource.getpagesize( )
+else :
+    defsize = 4096
 
 # Format string of numeric type used for counting. Unsigned long long.
 # See https://docs.python.org/3/library/struct.html#module-struct
