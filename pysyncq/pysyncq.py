@@ -19,13 +19,18 @@ from pysyncq import header as hdr
 class  PySyncQ :
 
     '''
-    class pysyncq.PySyncQ( name = None , create = True , size = <Page Size> )
+    class pysyncq.PySyncQ( name = None , create = True , size = <Page Size> ,
+                           start = None )
 
     Creates a synchronisation queue. name is a str that names the shared memory
     that is the backbone of the queue, and to which all processes will connect.
     create is a bool that signals whether to create new shared memory (True) or
     to use existing shared memory (False). size is an int of 0 or greater giving
-    the number of bytes to request for the shared memory.
+    the number of bytes to request for the shared memory. start names the start
+    method that will be used to create child processes. Hence, this must be a
+    valid start method string as returned by the multiprocessing module's
+    get_all_start_methods(). If start is None then multiprocessing's 
+    get_start_method() is called to determine the start method string.
     
     Each process that wishes to read/write on the queue must make a separate
     call to the .open( ) method, in order to register itself with the queue as
@@ -34,7 +39,8 @@ class  PySyncQ :
 
     #-- Double underscore methods --#
 
-    def  __init__ ( self , name = None , create = True , size = hdr.defsize ) :
+    def  __init__ ( self , name = None , create = True , size = hdr.defsize ,
+                           start = None ) :
     
         # Size must not allow more messages than a queue header counter max val.
         if  size > hdr.maxshmemory :
@@ -44,6 +50,14 @@ class  PySyncQ :
         self.name = name
         self.create = create
         self.size = size
+        self.start = start
+        
+        # Get default start method
+        if  self.start is None : self.start = mp.get_start_method( )
+        
+        # Check validity of start method string
+        if  self.start not in mp.get_all_start_methods( ) :
+            raise  ValueError( f'Not a valid start method, {start=}' )
         
         # Sender string and is uninitialised. Instance read position is
         # initialised to first byte of queue body. The serial number of the
@@ -81,6 +95,19 @@ class  PySyncQ :
         
         # Set number of free bytes in the queue main body.
         self.h[ hdr.ifree ] = len( self.b )
+        
+        # Child processes will be spawned rather than forked. A memoryview is
+        # not pickleable as of Python 3.11.4. Release un-pickleable resources.
+        # NB! Shared memory is closed but NOT unlinked. All resources will be
+        # recovered in the call to open( ). Although the Condition object is not
+        # pickleable, this can nevertheless be inhereted by the child process.
+        if  self.start == 'spawn' :
+            self.h.release( )
+            self.b.release( )
+            self.shm.close( )
+            self.h = None
+            self.b = None
+            self.shm = None
     
     
     def  __call__ ( self , *args , **kargs ) :
@@ -261,6 +288,13 @@ class  PySyncQ :
         # If true then add local sender name to message filter list
         if  filtself : self.scrnsend.add( self.sender )
         
+        # Child processes was spawned rather than forked. Recover all un-
+        # pickleable and un-inheritable resources.
+        if  self.start == 'spawn' :
+            self.shm = sm.SharedMemory( self.name , create = False )
+            self.h = self.shm.buf[ : hdr.sizequeuehead ].cast( hdr.fmtqueuehead)
+            self.b = self.shm.buf[ hdr.sizequeuehead : ]
+        
         # Get queue lock. Increment the process counter in the queue header. And
         # set this instance's read or queue position to the tail; read only the
         # messages that come after this instance/process has registered. The
@@ -300,7 +334,7 @@ class  PySyncQ :
         self.b.release( )
         
         # Close local copy of shared memory
-        self.shm.close ( )
+        self.shm.close( )
         
         # Unlink if this is the last close
         if  noproc : self.shm.unlink( )

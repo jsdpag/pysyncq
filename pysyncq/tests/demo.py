@@ -118,6 +118,9 @@ def  cfun ( q , name ) :
 
 if __name__ == "__main__" :
 
+    # Report current process start method
+    print( f'Running demo.py with start method { mp.get_start_method( ) }.' )
+    
     # Create a new synchronisation queue with a small buffer of shared memory
     q = pq.PySyncQ( 'pqdemo' , size = 256 )
 
