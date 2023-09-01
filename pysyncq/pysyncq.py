@@ -242,15 +242,18 @@ class  PySyncQ :
     
     # Creation / Deletion #
     
-    def  open ( self , sender = str( mp.current_process( ).pid ) ,
-                       filtself = True ) :
+    def  open ( self , sender = None , filtself = True ) :
     
         '''
         open( sender = pid , filtself = True ) registers the current process
         with the queue. sender is a string naming the process in each message
-        that it sends. By default, this is the current process ID i.e. pid.
-        Messages filtself 
+        that it sends; if set to None, then the current process ID i.e. pid is
+        used as the sender (default). The bool filtself says whether the sender
+        string is automatically added to the scrnsend set; default is True.
         '''
+        
+        # Use the default sender string
+        if  sender is None : sender = str( mp.current_process( ).pid )
         
         # Store sender string as bytes that can go directly into shared memory
         self.sender = sender.encode( )
