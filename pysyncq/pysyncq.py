@@ -104,10 +104,8 @@ class  PySyncQ :
         if  self.start == 'spawn' :
             self.h.release( )
             self.b.release( )
-            self.shm.close( )
             self.h = None
             self.b = None
-            self.shm = None
     
     
     def  __call__ ( self , *args , **kargs ) :
@@ -291,7 +289,6 @@ class  PySyncQ :
         # Child processes was spawned rather than forked. Recover all un-
         # pickleable and un-inheritable resources.
         if  self.start == 'spawn' :
-            self.shm = sm.SharedMemory( self.name , create = False )
             self.h = self.shm.buf[ : hdr.sizequeuehead ].cast( hdr.fmtqueuehead)
             self.b = self.shm.buf[ hdr.sizequeuehead : ]
         
