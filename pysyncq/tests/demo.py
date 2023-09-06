@@ -59,7 +59,7 @@ tnoun = tuple( noun )
 tverb = tuple( verb )
 
 # Choose OS-specific function for timed wait on keyboard button press
-keyhit = keyhit_windows  if platform.system( ) is 'Windows'  else keyhit_notwin
+keyhit = keyhit_windows  if platform.system( ) == 'Windows'  else keyhit_notwin
 
 
 #--- Child process function ---#
