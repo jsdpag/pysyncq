@@ -21,6 +21,18 @@ from select import select
 from pysyncq import pysyncq as pq
 
 
+#--- Keyboard hit detection ---#
+
+# Non-Windows OS
+def  keyhit_notwin ( ) :
+
+    # Timed wait for hit on standard input
+    r , _ , _ = select( [ sys.stdin ] , [ ] , [ ] , 1 )
+    
+    # Return true if key was hit
+    return  bool( r )
+
+
 #--- Global variables ---#
 
 # Sets of grammatical elements
@@ -32,6 +44,9 @@ verb = { 'ate' , 'married' , 'fled' , 'hid' , 'shared' , 'worried', 'satisfied'}
 tdet  = tuple( determiner )
 tnoun = tuple( noun )
 tverb = tuple( verb )
+
+# Choose function for timed wait on keyboard button press
+keyhit = keyhit_notwin
 
 
 #--- Child process function ---#
@@ -150,16 +165,10 @@ if __name__ == "__main__" :
     # Here, the message type is 'user' and the message body is 'start'
     q.append( msgtype = 'user' , msg = 'start' )
 
-    # Read loop
-    while  True :
-
-        # Wait for user input, one second at a time
-        r , _ , _ = select( [ sys.stdin ] , [ ] , [ ] , 1 )
+    # Read loop until keyboard button press
+    while not keyhit( ) :
         
-        # User hit enter
-        if  r : break
-        
-        # Clear queue
+        # Clear queue to prevent clogging
         for  m in q : pass
 
     # Stop signal
