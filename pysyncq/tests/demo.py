@@ -14,8 +14,12 @@ import multiprocessing as mp
 import time as t
 import random as rnd
 import sys
+import platform
 from math import pi
-from select import select
+if  platform.system( ) == 'Windows' :
+    from msvcrt import kbhit
+else :
+    from select import select
 
 # pysyncq
 from pysyncq import pysyncq as pq
@@ -32,6 +36,15 @@ def  keyhit_notwin ( ) :
     # Return true if key was hit
     return  bool( r )
 
+# Windows
+def  keyhit_windows ( ) :
+
+    # Wait for one second
+    t.sleep( 1 )
+    
+    # Return true if key was hit
+    return  kbhit( )
+
 
 #--- Global variables ---#
 
@@ -45,8 +58,8 @@ tdet  = tuple( determiner )
 tnoun = tuple( noun )
 tverb = tuple( verb )
 
-# Choose function for timed wait on keyboard button press
-keyhit = keyhit_notwin
+# Choose OS-specific function for timed wait on keyboard button press
+keyhit = keyhit_windows  if platform.system( ) is 'Windows'  else keyhit_notwin
 
 
 #--- Child process function ---#
@@ -166,7 +179,7 @@ if __name__ == "__main__" :
     q.append( msgtype = 'user' , msg = 'start' )
 
     # Read loop until keyboard button press
-    while not keyhit( ) :
+    while  not keyhit( ) :
         
         # Clear queue to prevent clogging
         for  m in q : pass
