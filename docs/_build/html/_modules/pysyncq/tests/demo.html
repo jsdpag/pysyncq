@@ -87,11 +87,36 @@
 <span class="kn">import</span> <span class="nn">time</span> <span class="k">as</span> <span class="nn">t</span>
 <span class="kn">import</span> <span class="nn">random</span> <span class="k">as</span> <span class="nn">rnd</span>
 <span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">platform</span>
 <span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">pi</span>
-<span class="kn">from</span> <span class="nn">select</span> <span class="kn">import</span> <span class="n">select</span>
+<span class="k">if</span>  <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">(</span> <span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;Windows&#39;</span> <span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">msvcrt</span> <span class="kn">import</span> <span class="n">kbhit</span>
+<span class="k">else</span> <span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">select</span> <span class="kn">import</span> <span class="n">select</span>
 
 <span class="c1"># pysyncq</span>
 <span class="kn">from</span> <span class="nn">pysyncq</span> <span class="kn">import</span> <span class="n">pysyncq</span> <span class="k">as</span> <span class="n">pq</span>
+
+
+<span class="c1">#--- Keyboard hit detection ---#</span>
+
+<span class="c1"># Non-Windows OS</span>
+<div class="viewcode-block" id="keyhit_notwin"><a class="viewcode-back" href="../../../pysyncq.tests.html#pysyncq.tests.demo.keyhit_notwin">[docs]</a><span class="k">def</span>  <span class="nf">keyhit_notwin</span> <span class="p">(</span> <span class="p">)</span> <span class="p">:</span>
+
+    <span class="c1"># Timed wait for hit on standard input</span>
+    <span class="n">r</span> <span class="p">,</span> <span class="n">_</span> <span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span> <span class="p">[</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span> <span class="p">]</span> <span class="p">,</span> <span class="p">[</span> <span class="p">]</span> <span class="p">,</span> <span class="p">[</span> <span class="p">]</span> <span class="p">,</span> <span class="mi">1</span> <span class="p">)</span>
+    
+    <span class="c1"># Return true if key was hit</span>
+    <span class="k">return</span>  <span class="nb">bool</span><span class="p">(</span> <span class="n">r</span> <span class="p">)</span></div>
+
+<span class="c1"># Windows</span>
+<div class="viewcode-block" id="keyhit_windows"><a class="viewcode-back" href="../../../pysyncq.tests.html#pysyncq.tests.demo.keyhit_windows">[docs]</a><span class="k">def</span>  <span class="nf">keyhit_windows</span> <span class="p">(</span> <span class="p">)</span> <span class="p">:</span>
+
+    <span class="c1"># Wait for one second</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span> <span class="mi">1</span> <span class="p">)</span>
+    
+    <span class="c1"># Return true if key was hit</span>
+    <span class="k">return</span>  <span class="n">kbhit</span><span class="p">(</span> <span class="p">)</span></div>
 
 
 <span class="c1">#--- Global variables ---#</span>
@@ -105,6 +130,9 @@
 <span class="n">tdet</span>  <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span> <span class="n">determiner</span> <span class="p">)</span>
 <span class="n">tnoun</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span> <span class="n">noun</span> <span class="p">)</span>
 <span class="n">tverb</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span> <span class="n">verb</span> <span class="p">)</span>
+
+<span class="c1"># Choose OS-specific function for timed wait on keyboard button press</span>
+<span class="n">keyhit</span> <span class="o">=</span> <span class="n">keyhit_windows</span>  <span class="k">if</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">(</span> <span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;Windows&#39;</span>  <span class="k">else</span> <span class="n">keyhit_notwin</span>
 
 
 <span class="c1">#--- Child process function ---#</span>
@@ -191,6 +219,9 @@
 
 <span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span> <span class="p">:</span>
 
+    <span class="c1"># Report current process start method</span>
+    <span class="nb">print</span><span class="p">(</span> <span class="sa">f</span><span class="s1">&#39;Running demo.py with start method </span><span class="si">{</span><span class="w"> </span><span class="n">mp</span><span class="o">.</span><span class="n">get_start_method</span><span class="p">(</span><span class="w"> </span><span class="p">)</span><span class="w"> </span><span class="si">}</span><span class="s1">.&#39;</span> <span class="p">)</span>
+    
     <span class="c1"># Create a new synchronisation queue with a small buffer of shared memory</span>
     <span class="n">q</span> <span class="o">=</span> <span class="n">pq</span><span class="o">.</span><span class="n">PySyncQ</span><span class="p">(</span> <span class="s1">&#39;pqdemo&#39;</span> <span class="p">,</span> <span class="n">size</span> <span class="o">=</span> <span class="mi">256</span> <span class="p">)</span>
 
@@ -220,16 +251,10 @@
     <span class="c1"># Here, the message type is &#39;user&#39; and the message body is &#39;start&#39;</span>
     <span class="n">q</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">msgtype</span> <span class="o">=</span> <span class="s1">&#39;user&#39;</span> <span class="p">,</span> <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;start&#39;</span> <span class="p">)</span>
 
-    <span class="c1"># Read loop</span>
-    <span class="k">while</span>  <span class="kc">True</span> <span class="p">:</span>
-
-        <span class="c1"># Wait for user input, one second at a time</span>
-        <span class="n">r</span> <span class="p">,</span> <span class="n">_</span> <span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span> <span class="p">[</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span> <span class="p">]</span> <span class="p">,</span> <span class="p">[</span> <span class="p">]</span> <span class="p">,</span> <span class="p">[</span> <span class="p">]</span> <span class="p">,</span> <span class="mi">1</span> <span class="p">)</span>
+    <span class="c1"># Read loop until keyboard button press</span>
+    <span class="k">while</span>  <span class="ow">not</span> <span class="n">keyhit</span><span class="p">(</span> <span class="p">)</span> <span class="p">:</span>
         
-        <span class="c1"># User hit enter</span>
-        <span class="k">if</span>  <span class="n">r</span> <span class="p">:</span> <span class="k">break</span>
-        
-        <span class="c1"># Clear queue</span>
+        <span class="c1"># Clear queue to prevent clogging</span>
         <span class="k">for</span>  <span class="n">m</span> <span class="ow">in</span> <span class="n">q</span> <span class="p">:</span> <span class="k">pass</span>
 
     <span class="c1"># Stop signal</span>

@@ -92,13 +92,18 @@
 <div class="viewcode-block" id="PySyncQ"><a class="viewcode-back" href="../../pysyncq.html#pysyncq.pysyncq.PySyncQ">[docs]</a><span class="k">class</span>  <span class="nc">PySyncQ</span> <span class="p">:</span>
 
 <span class="w">    </span><span class="sd">&#39;&#39;&#39;</span>
-<span class="sd">    class pysyncq.PySyncQ( name = None , create = True , size = &lt;Page Size&gt; )</span>
+<span class="sd">    class pysyncq.PySyncQ( name = None , create = True , size = &lt;Page Size&gt; ,</span>
+<span class="sd">                           start = None )</span>
 
 <span class="sd">    Creates a synchronisation queue. name is a str that names the shared memory</span>
 <span class="sd">    that is the backbone of the queue, and to which all processes will connect.</span>
 <span class="sd">    create is a bool that signals whether to create new shared memory (True) or</span>
 <span class="sd">    to use existing shared memory (False). size is an int of 0 or greater giving</span>
-<span class="sd">    the number of bytes to request for the shared memory.</span>
+<span class="sd">    the number of bytes to request for the shared memory. start names the start</span>
+<span class="sd">    method that will be used to create child processes. Hence, this must be a</span>
+<span class="sd">    valid start method string as returned by the multiprocessing module&#39;s</span>
+<span class="sd">    get_all_start_methods(). If start is None then multiprocessing&#39;s </span>
+<span class="sd">    get_start_method() is called to determine the start method string.</span>
 <span class="sd">    </span>
 <span class="sd">    Each process that wishes to read/write on the queue must make a separate</span>
 <span class="sd">    call to the .open( ) method, in order to register itself with the queue as</span>
@@ -107,7 +112,8 @@
 
     <span class="c1">#-- Double underscore methods --#</span>
 
-    <span class="k">def</span>  <span class="fm">__init__</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">,</span> <span class="n">create</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">,</span> <span class="n">size</span> <span class="o">=</span> <span class="n">hdr</span><span class="o">.</span><span class="n">defsize</span> <span class="p">)</span> <span class="p">:</span>
+    <span class="k">def</span>  <span class="fm">__init__</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">,</span> <span class="n">create</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">,</span> <span class="n">size</span> <span class="o">=</span> <span class="n">hdr</span><span class="o">.</span><span class="n">defsize</span> <span class="p">,</span>
+                           <span class="n">start</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">)</span> <span class="p">:</span>
     
         <span class="c1"># Size must not allow more messages than a queue header counter max val.</span>
         <span class="k">if</span>  <span class="n">size</span> <span class="o">&gt;</span> <span class="n">hdr</span><span class="o">.</span><span class="n">maxshmemory</span> <span class="p">:</span>
@@ -117,6 +123,14 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">create</span> <span class="o">=</span> <span class="n">create</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="n">size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">start</span>
+        
+        <span class="c1"># Get default start method</span>
+        <span class="k">if</span>  <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="ow">is</span> <span class="kc">None</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">get_start_method</span><span class="p">(</span> <span class="p">)</span>
+        
+        <span class="c1"># Check validity of start method string</span>
+        <span class="k">if</span>  <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">mp</span><span class="o">.</span><span class="n">get_all_start_methods</span><span class="p">(</span> <span class="p">)</span> <span class="p">:</span>
+            <span class="k">raise</span>  <span class="ne">ValueError</span><span class="p">(</span> <span class="sa">f</span><span class="s1">&#39;Not a valid start method, </span><span class="si">{</span><span class="n">start</span><span class="si">=}</span><span class="s1">&#39;</span> <span class="p">)</span>
         
         <span class="c1"># Sender string and is uninitialised. Instance read position is</span>
         <span class="c1"># initialised to first byte of queue body. The serial number of the</span>
@@ -154,6 +168,17 @@
         
         <span class="c1"># Set number of free bytes in the queue main body.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">ifree</span> <span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="p">)</span>
+        
+        <span class="c1"># Child processes will be spawned rather than forked. A memoryview is</span>
+        <span class="c1"># not pickleable as of Python 3.11.4. Release un-pickleable resources.</span>
+        <span class="c1"># NB! Shared memory is closed but NOT unlinked. All resources will be</span>
+        <span class="c1"># recovered in the call to open( ). Although the Condition object is not</span>
+        <span class="c1"># pickleable, this can nevertheless be inhereted by the child process.</span>
+        <span class="k">if</span>  <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">==</span> <span class="s1">&#39;spawn&#39;</span> <span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">h</span><span class="o">.</span><span class="n">release</span><span class="p">(</span> <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="o">.</span><span class="n">release</span><span class="p">(</span> <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">h</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="kc">None</span>
     
     
     <span class="k">def</span>  <span class="fm">__call__</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="o">*</span><span class="n">args</span> <span class="p">,</span> <span class="o">**</span><span class="n">kargs</span> <span class="p">)</span> <span class="p">:</span>
@@ -315,21 +340,30 @@
     
     <span class="c1"># Creation / Deletion #</span>
     
-<div class="viewcode-block" id="PySyncQ.open"><a class="viewcode-back" href="../../pysyncq.html#pysyncq.pysyncq.PySyncQ.open">[docs]</a>    <span class="k">def</span>  <span class="nf">open</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="n">sender</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span> <span class="n">mp</span><span class="o">.</span><span class="n">current_process</span><span class="p">(</span> <span class="p">)</span><span class="o">.</span><span class="n">pid</span> <span class="p">)</span> <span class="p">,</span>
-                       <span class="n">filtself</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">)</span> <span class="p">:</span>
+<div class="viewcode-block" id="PySyncQ.open"><a class="viewcode-back" href="../../pysyncq.html#pysyncq.pysyncq.PySyncQ.open">[docs]</a>    <span class="k">def</span>  <span class="nf">open</span> <span class="p">(</span> <span class="bp">self</span> <span class="p">,</span> <span class="n">sender</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">,</span> <span class="n">filtself</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">)</span> <span class="p">:</span>
 <span class="w">    </span>
 <span class="w">        </span><span class="sd">&#39;&#39;&#39;</span>
 <span class="sd">        open( sender = pid , filtself = True ) registers the current process</span>
 <span class="sd">        with the queue. sender is a string naming the process in each message</span>
-<span class="sd">        that it sends. By default, this is the current process ID i.e. pid.</span>
-<span class="sd">        Messages filtself </span>
+<span class="sd">        that it sends; if set to None, then the current process ID i.e. pid is</span>
+<span class="sd">        used as the sender (default). The bool filtself says whether the sender</span>
+<span class="sd">        string is automatically added to the scrnsend set; default is True.</span>
 <span class="sd">        &#39;&#39;&#39;</span>
+        
+        <span class="c1"># Use the default sender string</span>
+        <span class="k">if</span>  <span class="n">sender</span> <span class="ow">is</span> <span class="kc">None</span> <span class="p">:</span> <span class="n">sender</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span> <span class="n">mp</span><span class="o">.</span><span class="n">current_process</span><span class="p">(</span> <span class="p">)</span><span class="o">.</span><span class="n">pid</span> <span class="p">)</span>
         
         <span class="c1"># Store sender string as bytes that can go directly into shared memory</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sender</span> <span class="o">=</span> <span class="n">sender</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span> <span class="p">)</span>
         
         <span class="c1"># If true then add local sender name to message filter list</span>
         <span class="k">if</span>  <span class="n">filtself</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scrnsend</span><span class="o">.</span><span class="n">add</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">sender</span> <span class="p">)</span>
+        
+        <span class="c1"># Child processes was spawned rather than forked. Recover all un-</span>
+        <span class="c1"># pickleable and un-inheritable resources.</span>
+        <span class="k">if</span>  <span class="bp">self</span><span class="o">.</span><span class="n">start</span> <span class="o">==</span> <span class="s1">&#39;spawn&#39;</span> <span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shm</span><span class="o">.</span><span class="n">buf</span><span class="p">[</span> <span class="p">:</span> <span class="n">hdr</span><span class="o">.</span><span class="n">sizequeuehead</span> <span class="p">]</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span> <span class="n">hdr</span><span class="o">.</span><span class="n">fmtqueuehead</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shm</span><span class="o">.</span><span class="n">buf</span><span class="p">[</span> <span class="n">hdr</span><span class="o">.</span><span class="n">sizequeuehead</span> <span class="p">:</span> <span class="p">]</span>
         
         <span class="c1"># Get queue lock. Increment the process counter in the queue header. And</span>
         <span class="c1"># set this instance&#39;s read or queue position to the tail; read only the</span>
@@ -370,7 +404,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">b</span><span class="o">.</span><span class="n">release</span><span class="p">(</span> <span class="p">)</span>
         
         <span class="c1"># Close local copy of shared memory</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">shm</span><span class="o">.</span><span class="n">close</span> <span class="p">(</span> <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shm</span><span class="o">.</span><span class="n">close</span><span class="p">(</span> <span class="p">)</span>
         
         <span class="c1"># Unlink if this is the last close</span>
         <span class="k">if</span>  <span class="n">noproc</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">shm</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span> <span class="p">)</span>

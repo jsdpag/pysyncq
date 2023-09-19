@@ -134,7 +134,7 @@ and space is freed.</p></li>
 <section id="circular-buffering-of-messages">
 <h2>Circular buffering of messages<a class="headerlink" href="#circular-buffering-of-messages" title="Permalink to this heading"></a></h2>
 <p>One problem is that the message header counters require a contiguous block of
-bytes. But messages can be any length that will fit within the availbe space of
+bytes. But messages can be any length that will fit within the availabe space of
 the queue. Therefore, the end of one message may not leave enough space between
 itself and the end of the queue body. Under these circumstances, the read or
 write position, the queue head or tail will skip the trailing bytes and jump
@@ -182,7 +182,7 @@ queue, with both positions at byte zero. It can also the case if the queue
 fills up and the tail wraps around to zero before any messages are removed from
 the head. If the read position for an instance of the PySyncQ object also sits
 on the same byte then it impossible to know whether the message(s) in the queue
-have alread been read by the PySyncQ instance.</p>
+have already been read by the PySyncQ instance.</p>
 <p>Serial numbers can solve this problem. If a separate number is assigned to each
 read and to each write, then one need only to compare the read serial number
 of the PySyncQ instance with the write serial number that is kept in the queue.</p>

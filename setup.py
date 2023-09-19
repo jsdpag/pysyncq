@@ -12,8 +12,8 @@ long_description = (this_directory / "README.md").read_text()
 
 # Setup parameters.
 setup(  name = 'pysyncq' ,
-     version = '0.0.0' ,
- description = 'Python based time/data synchronisation queue' ,
+     version = '0.0.1' ,
+ description = 'Coordinate state & timing of multiple processes.' ,
          url = 'https://github.com/jsdpag/pysyncq' ,
       author = 'Jackson Smith' ,
      license = 'GPL' ,

@@ -155,6 +155,33 @@ The queue maintains a count in shared memory of how many processes are still
 connected. Once this number is decreased to zero then the associated shared
 memory is unlinked from the file system.
 
+Start methods
+-------------
+
+It is possible to tell PySyncQ what kind of start method will be used to start
+the child processes, if this will differ from the parent process's default
+method::
+
+    PySyncQ( start = <method> )
+
+This argument can be set to a string that names the method, 'fork' or 'spawn'.
+This situation might occur if a context is used to start child processes using
+a different method from the parent's default method.
+
+By default, input argument **start** is None. It is important to know that
+PySyncQ will look up the start method using multiprocessing.get_start_method().
+Hence, it is important that any call to set_start_method( ) must come before any
+call to PySyncQ( start = None ). It is good practise to set the start method
+immediately after the main method boilerplate::
+
+    if __name__ == "__main__" :
+        multiprocessing.set_start_method( <method> )
+        q = PySyncQ( start = None )
+        
+Of course, if there is no reason to change the system's default start method
+then there is no need to call set_start_method or to change the value of input
+argument **start**.
+
 General queue behaviour
 -----------------------
 
@@ -173,10 +200,24 @@ Although the queue allows for indefinite waits to read or write messages, it is
 advisable to always set a timer. Unless there is good reason to. Otherwise, it
 can be very easy for the program to freeze for ever.
 
-Because the memory-protection locks must be passed as input arguments to the
-child target function, it is unclear whether this is supported without forking.
-Unix operating systems provide forking. But Windows will spawn child processes.
-The difference being that forked processes retain all information available to
-the parent process. While data must be pickled if it is to be preserved through
-a spawn. At the time of writing, memory locking primitives cannot be pickled.
+Experimentation with the Python multiprocessing package shows that objects such
+as shared memory and synchronisation primitives can be passed to child processes
+as input argumets in a call to Process( ) or similar as arguments. These will
+survive across both fork and spawn start methods.
+
+OS specific behaviour
+---------------------
+
+At the time of writing, there are some differences in the behaviour of the
+Python multiprocessing package that depend on the operating system. These are
+not all documented. A notable difference is that Python shared memory is
+automatically unlinked after the final object that references it has called the
+close( ) method.
+
+pysyncq can run on macOS and Windows. But not entirely without issue. On macOS,
+PySyncQ( ) cannot be called with a size that is too small. Using a minimum of
+4096 bytes or more should work. On Windows, there is an unresolved issue with
+UTF encoding and decoding that causes the parent process in demo.py to crash,
+while the child processes continue to run as expected without any UTF related
+errors.
 

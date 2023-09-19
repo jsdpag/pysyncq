@@ -49,7 +49,9 @@
 <li class="toctree-l2"><a class="reference internal" href="#sending-messages">Sending messages</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#reading-messages">Reading messages</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#closing-and-unlinking">Closing and unlinking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#start-methods">Start methods</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#general-queue-behaviour">General queue behaviour</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#os-specific-behaviour">OS specific behaviour</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">pysyncq</a></li>
@@ -147,7 +149,7 @@ the program:</p>
     <span class="o">**</span><span class="n">Respond</span> <span class="n">to</span> <span class="n">lack</span> <span class="n">of</span> <span class="n">memory</span> <span class="ow">in</span> <span class="n">queue</span><span class="o">**</span>
 </pre></div>
 </div>
-<p>Alternativley, one may block on the queue. That is, wait for enough space in the
+<p>Alternatively, one may block on the queue. That is, wait for enough space in the
 queue to become freed:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">q</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="s1">&#39;mtype&#39;</span> <span class="p">,</span> <span class="s1">&#39;message body&#39;</span> <span class="p">,</span> <span class="n">block</span> <span class="o">=</span> <span class="kc">True</span> <span class="p">,</span> <span class="n">timer</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">)</span>
 </pre></div>
@@ -163,7 +165,7 @@ timer expires:</p>
 <p>Either str or bytes objects can be written directly to the queue. But any object
 <strong>obj</strong> that can be cast as str by str(<strong>obj</strong>) may be given as either the
 message type or body. Be aware that it will be read out as a str that must be
-parsed to extract any futher data types.</p>
+parsed to extract any other data types.</p>
 </section>
 <section id="reading-messages">
 <h2>Reading messages<a class="headerlink" href="#reading-messages" title="Permalink to this heading"></a></h2>
@@ -225,6 +227,31 @@ PySyncQ iterator.</p>
 connected. Once this number is decreased to zero then the associated shared
 memory is unlinked from the file system.</p>
 </section>
+<section id="start-methods">
+<h2>Start methods<a class="headerlink" href="#start-methods" title="Permalink to this heading"></a></h2>
+<p>It is possible to tell PySyncQ what kind of start method will be used to start
+the child processes, if this will differ from the parent process’s default
+method:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">PySyncQ</span><span class="p">(</span> <span class="n">start</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">method</span><span class="o">&gt;</span> <span class="p">)</span>
+</pre></div>
+</div>
+<p>This argument can be set to a string that names the method, ‘fork’ or ‘spawn’.
+This situation might occur if a context is used to start child processes using
+a different method from the parent’s default method.</p>
+<p>By default, input argument <strong>start</strong> is None. It is important to know that
+PySyncQ will look up the start method using multiprocessing.get_start_method().
+Hence, it is important that any call to set_start_method( ) must come before any
+call to PySyncQ( start = None ). It is good practise to set the start method
+immediately after the main method boilerplate:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span> <span class="p">:</span>
+    <span class="n">multiprocessing</span><span class="o">.</span><span class="n">set_start_method</span><span class="p">(</span> <span class="o">&lt;</span><span class="n">method</span><span class="o">&gt;</span> <span class="p">)</span>
+    <span class="n">q</span> <span class="o">=</span> <span class="n">PySyncQ</span><span class="p">(</span> <span class="n">start</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">)</span>
+</pre></div>
+</div>
+<p>Of course, if there is no reason to change the system’s default start method
+then there is no need to call set_start_method or to change the value of input
+argument <strong>start</strong>.</p>
+</section>
 <section id="general-queue-behaviour">
 <h2>General queue behaviour<a class="headerlink" href="#general-queue-behaviour" title="Permalink to this heading"></a></h2>
 <p>The queue adds new messages from any process to the tail. But each process must
@@ -241,12 +268,24 @@ queued messages as read without actually reading them:</p>
 <p>Although the queue allows for indefinite waits to read or write messages, it is
 advisable to always set a timer. Unless there is good reason to. Otherwise, it
 can be very easy for the program to freeze for ever.</p>
-<p>Because the memory-protection locks must be passed as input arguments to the
-child target function, it is unclear whether this is supported without forking.
-Unix operating systems provide forking. But Windows will spawn child processes.
-The difference being that forked processes retain all information available to
-the parent process. While data must be pickled if it is to be preserved through
-a spawn. At the time of writing, memory locking primatives cannot be pickled.</p>
+<p>Experimentation with the Python multiprocessing package shows that objects such
+as shared memory and synchronisation primitives can be passed to child processes
+as input argumets in a call to Process( ) or similar as arguments. These will
+survive across both fork and spawn start methods.</p>
+</section>
+<section id="os-specific-behaviour">
+<h2>OS specific behaviour<a class="headerlink" href="#os-specific-behaviour" title="Permalink to this heading"></a></h2>
+<p>At the time of writing, there are some differences in the behaviour of the
+Python multiprocessing package that depend on the operating system. These are
+not all documented. A notable difference is that Python shared memory is
+automatically unlinked after the final object that references it has called the
+close( ) method.</p>
+<p>pysyncq can run on macOS and Windows. But not entirely without issue. On macOS,
+PySyncQ( ) cannot be called with a size that is too small. Using a minimum of
+4096 bytes or more should work. On Windows, there is an unresolved issue with
+UTF encoding and decoding that causes the parent process in demo.py to crash,
+while the child processes continue to run as expected without any UTF related
+errors.</p>
 </section>
 </section>
 

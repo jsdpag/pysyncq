@@ -78,7 +78,8 @@
 
 <span class="c1">#--- IMPORT BLOCK ---#</span>
 
-<span class="kn">import</span>  <span class="nn">resource</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="kn">import</span> <span class="n">name</span> <span class="k">as</span> <span class="n">osname</span>
+<span class="k">if</span>  <span class="n">osname</span> <span class="o">==</span> <span class="s1">&#39;posix&#39;</span> <span class="p">:</span> <span class="kn">import</span>  <span class="nn">resource</span>
 <span class="kn">from</span> <span class="nn">ctypes</span> <span class="kn">import</span> <span class="n">c_uint</span> <span class="p">,</span> <span class="n">c_ulonglong</span> <span class="p">,</span> <span class="n">sizeof</span>
 
 
@@ -86,7 +87,10 @@
 
 <span class="c1"># Page size in memory e.g. 4096 bytes.</span>
 <span class="c1"># Default size of the shared memory.</span>
-<span class="n">defsize</span> <span class="o">=</span> <span class="n">resource</span><span class="o">.</span><span class="n">getpagesize</span><span class="p">(</span> <span class="p">)</span>
+<span class="k">if</span>  <span class="n">osname</span> <span class="o">==</span> <span class="s1">&#39;posix&#39;</span> <span class="p">:</span>
+    <span class="n">defsize</span> <span class="o">=</span> <span class="n">resource</span><span class="o">.</span><span class="n">getpagesize</span><span class="p">(</span> <span class="p">)</span>
+<span class="k">else</span> <span class="p">:</span>
+    <span class="n">defsize</span> <span class="o">=</span> <span class="mi">4096</span>
 
 <span class="c1"># Format string of numeric type used for counting. Unsigned long long.</span>
 <span class="c1"># See https://docs.python.org/3/library/struct.html#module-struct</span>

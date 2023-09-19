@@ -109,6 +109,9 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pysyncq.tests.html#module-pysyncq.tests.demo">pysyncq.tests.demo module</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="pysyncq.tests.html#pysyncq.tests.demo.cfun"><code class="docutils literal notranslate"><span class="pre">cfun()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="pysyncq.tests.html#pysyncq.tests.demo.keyhit"><code class="docutils literal notranslate"><span class="pre">keyhit()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="pysyncq.tests.html#pysyncq.tests.demo.keyhit_notwin"><code class="docutils literal notranslate"><span class="pre">keyhit_notwin()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="pysyncq.tests.html#pysyncq.tests.demo.keyhit_windows"><code class="docutils literal notranslate"><span class="pre">keyhit_windows()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="pysyncq.tests.html#module-pysyncq.tests">Module contents</a></li>
@@ -160,14 +163,21 @@ string using str( element ) before encoding.</p>
 <p>Python Synchronisation Queue</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="pysyncq.pysyncq.PySyncQ">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pysyncq.pysyncq.</span></span><span class="sig-name descname"><span class="pre">PySyncQ</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">create</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4096</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pysyncq/pysyncq.html#PySyncQ"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pysyncq.pysyncq.PySyncQ" title="Permalink to this definition"></a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">pysyncq.pysyncq.</span></span><span class="sig-name descname"><span class="pre">PySyncQ</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">create</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4096</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pysyncq/pysyncq.html#PySyncQ"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pysyncq.pysyncq.PySyncQ" title="Permalink to this definition"></a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
-<p>class pysyncq.PySyncQ( name = None , create = True , size = &lt;Page Size&gt; )</p>
+<dl class="simple">
+<dt>class pysyncq.PySyncQ( name = None , create = True , size = &lt;Page Size&gt; ,</dt><dd><p>start = None )</p>
+</dd>
+</dl>
 <p>Creates a synchronisation queue. name is a str that names the shared memory
 that is the backbone of the queue, and to which all processes will connect.
 create is a bool that signals whether to create new shared memory (True) or
 to use existing shared memory (False). size is an int of 0 or greater giving
-the number of bytes to request for the shared memory.</p>
+the number of bytes to request for the shared memory. start names the start
+method that will be used to create child processes. Hence, this must be a
+valid start method string as returned by the multiprocessing module’s
+get_all_start_methods(). If start is None then multiprocessing’s
+get_start_method() is called to determine the start method string.</p>
 <p>Each process that wishes to read/write on the queue must make a separate
 call to the .open( ) method, in order to register itself with the queue as
 a unique reader/writer.</p>
@@ -195,11 +205,12 @@ MemoryError exception is raise.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pysyncq.pysyncq.PySyncQ.open">
-<span class="sig-name descname"><span class="pre">open</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sender</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'18526'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filtself</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pysyncq/pysyncq.html#PySyncQ.open"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pysyncq.pysyncq.PySyncQ.open" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">open</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sender</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filtself</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pysyncq/pysyncq.html#PySyncQ.open"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pysyncq.pysyncq.PySyncQ.open" title="Permalink to this definition"></a></dt>
 <dd><p>open( sender = pid , filtself = True ) registers the current process
 with the queue. sender is a string naming the process in each message
-that it sends. By default, this is the current process ID i.e. pid.
-Messages filtself</p>
+that it sends; if set to None, then the current process ID i.e. pid is
+used as the sender (default). The bool filtself says whether the sender
+string is automatically added to the scrnsend set; default is True.</p>
 </dd></dl>
 
 <dl class="py method">
