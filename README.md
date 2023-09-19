@@ -31,3 +31,5 @@ the message transfer time from a sender to a reader.
 Developed by:
 * [Jackson Smith](https://www.linkedin.com/in/jackson-e-t-smith)
 
+0.0.1 - Support for spawn as well as fork child process starting methods.
+0.0.0 - Initial release. Functional on Linux.
